@@ -239,6 +239,33 @@ async function main() {
     return body;
   });
 
+  if (ownsServer) {
+    await step("useYolo fallback avoids perception clear-path save", async () => {
+      const point = replay.ride.route[Math.min(4, replay.ride.route.length - 1)];
+      const body = await requestJson("/api/media/analyze-and-save", {
+        method: "POST",
+        expectedStatus: 201,
+        body: {
+          imageBase64: TINY_PNG_DATA_URI,
+          useYolo: true,
+          rideId: DEMO_RIDE_ID,
+          t: point.t,
+          lat: point.lat,
+          lng: point.lng,
+          headingDeg: point.headingDeg,
+          speedMps: point.speedMps,
+          camera: "front",
+        },
+      });
+      assert(body.provider !== "perception", "failed YOLO does not report perception provider");
+      assert(typeof body.yoloNote === "string" && body.yoloNote.includes("fallback analysis"), "failed YOLO returns fallback note");
+      assert(!body.perception, "failed YOLO does not synthesize empty perception");
+      assert(body.event?.spokenAlert !== "Path clear.", "failed YOLO does not persist clear-path event");
+      assert(body.event?.severity > 18, "failed YOLO fallback is not the empty-perception severity");
+      return body;
+    });
+  }
+
   const report = await step("current segment report and export", async () => {
     const segments = await requestJson("/api/danger-segments");
     assert(Array.isArray(segments.dangerSegments) && segments.dangerSegments.length > 0, "danger segments list is non-empty");

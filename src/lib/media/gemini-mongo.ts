@@ -38,13 +38,19 @@ export async function analyzeAndPersistMedia(input: AnalyzeAndPersistMediaInput)
   let perception = input.perception;
   let yoloNote: string | undefined;
 
-  const canRunYolo =
-    input.useYolo && Boolean(getYoloServiceUrl()) && Boolean(input.imageBase64?.trim()) && !input.perception;
+  const yoloRequested = input.useYolo && !input.perception;
+  const hasYoloImage = Boolean(input.imageBase64?.trim());
+  const yoloServiceUrl = getYoloServiceUrl();
 
-  if (canRunYolo) {
+  if (yoloRequested && !hasYoloImage) {
+    yoloNote = "YOLO requested but imageBase64 was not provided; used fallback analysis.";
+  } else if (yoloRequested && !yoloServiceUrl) {
+    yoloNote = "YOLO service unavailable: YOLO_SERVICE_URL is not configured; used fallback analysis.";
+  } else if (yoloRequested) {
     const yolo = await fetchYoloDetectionsFromService(input.imageBase64);
-    if (yolo?.note) yoloNote = yolo.note;
-    if (yolo) {
+    if (yolo?.note) {
+      yoloNote = `${yolo.note}; used fallback analysis.`;
+    } else if (yolo) {
       perception = buildPerceptionFromYoloDetections({
         detections: yolo.detections,
         width: yolo.width,
@@ -55,6 +61,8 @@ export async function analyzeAndPersistMedia(input: AnalyzeAndPersistMediaInput)
         speedMps: input.speedMps,
         headingDeg: input.headingDeg,
       });
+    } else {
+      yoloNote = "YOLO service unavailable; used fallback analysis.";
     }
   }
 

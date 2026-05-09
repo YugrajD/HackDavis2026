@@ -538,7 +538,7 @@ Returns **503** when `YOLO_SERVICE_URL` is unset or the sidecar is unreachable, 
 
 LureLore-inspired one-shot media pipeline. It accepts a frame plus optional stored media URLs, analyzes through Gemini when configured, persists a `HazardEvent` to MongoDB or memory, and returns the saved event. `imageBase64` uses the same decoded image limit as `/api/media/upload` thumbnails: 4MB, plus JSON/base64 overhead.
 
-Set **`useYolo`: true** to run YOLO detection (same sidecar as `/api/perception/detect`) when **`perception` is omitted**—the server fills `perception` from `FrameObservation` via `analyzeFrameObservation`, then merges with Gemini when `GEMINI_API_KEY` is set: **tracks and risk-aligned fields from YOLO**, **spoken alert and explanation text from Gemini** when available.
+Set **`useYolo`: true** to run YOLO detection (same sidecar as `/api/perception/detect`) when **`perception` is omitted**—the server fills `perception` from `FrameObservation` via `analyzeFrameObservation`, then merges with Gemini when `GEMINI_API_KEY` is set: **tracks and risk-aligned fields from YOLO**, **spoken alert and explanation text from Gemini** when available. If the sidecar is unavailable or returns an error note, the server falls back to Gemini/stub analysis without synthesizing an empty YOLO `perception` result.
 
 Request:
 
