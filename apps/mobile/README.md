@@ -47,12 +47,15 @@ Open in Expo Go or a dev build; grant **camera** (and **location** if you want r
 ## Flow
 
 1. `POST /api/rides` — start a live bike ride with the current GPS point. If this fails, the app keeps the demo fallback ride `demo-ride-1`.
-2. Capture one JPEG frame as base64 at `quality: 0.55` with `skipProcessing: false` so Expo honors compression and orientation before network upload.
-3. `POST /api/media/upload` with `thumbnailBase64` — stores the compressed thumbnail URL.
-4. `POST /api/media/analyze-and-save` with the same compressed `imageBase64`, `rideId`, `t` relative to `ride.startedAt`, `useYolo: true`, and the uploaded `thumbnailUrl` — server runs YOLO + `analyzeFrameObservation`, then saves + optional Gemini copy.
-5. `POST /api/rides/:rideId/route` — append one route point for the saved event.
-6. `POST /api/voice/alert` — play MP3 or `expo-speech` fallback.
-7. `PATCH /api/rides/:rideId/end` — end the active ride and refresh stats.
+2. **Live monitor (optional):** with **Start monitor**, the app keeps `CameraView` in **`video`** mode, snapshots JPEGs at **~0.42 quality** every **~1.3 s**, and calls **`POST /api/perception/detect`** for YOLO boxes only (no event per frame). Bounding boxes overlay the preview. High client HUD score can trigger a **debounced** full pipeline (same steps 3–6 as a single burst). Short **expo-speech** hints use a separate cooldown and are not a substitute for `/api/voice/alert` on saved events.
+3. **Manual save:** **Save hazard (manual)** captures at `quality: 0.55` with `skipProcessing: false`, then runs the pipeline below.
+4. `POST /api/media/upload` with `thumbnailBase64` — stores the compressed thumbnail URL.
+5. `POST /api/media/analyze-and-save` with the same compressed `imageBase64`, `rideId`, `t` relative to `ride.startedAt`, `useYolo: true`, and the uploaded `thumbnailUrl` — server runs YOLO + `analyzeFrameObservation`, then saves + optional Gemini copy.
+6. `POST /api/rides/:rideId/route` — append one route point for the saved event.
+7. `POST /api/voice/alert` — play MP3 or `expo-speech` fallback.
+8. `PATCH /api/rides/:rideId/end` — end the active ride and refresh stats (monitor stops when the ride ends).
+
+If live snapshots while in `video` mode are unreliable on a device, use manual capture for the demo or consider a **development build** with a frame-processor library (not required for the default Wi‑Fi laptop path).
 
 ## Firewall
 

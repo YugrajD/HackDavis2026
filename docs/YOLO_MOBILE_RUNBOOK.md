@@ -119,3 +119,16 @@ If YOLO is configured but not reachable, overall provider status becomes `"degra
 4. `curl http://localhost:3000/api/providers/status` shows YOLO `available: true` when live detection is expected.
 5. `apps/mobile/.env` uses `EXPO_PUBLIC_API_BASE_URL=http://<LAN-IP>:3000`.
 6. `curl -X POST http://localhost:3000/api/seed/demo` ran before friends test replay or records.
+
+## 5. Live monitor (Expo)
+
+The mobile app can run **continuous video preview** with a **Start monitor** toggle. While monitor is on:
+
+- It snapshots JPEGs at **~0.42 quality** on an interval (default **1.3 s**) and calls **`POST /api/perception/detect`** only (no DB write per frame).
+- Bounding boxes draw on the preview from normalized `bbox` values when YOLO returns detections.
+- **Manual save** still uses **Save hazard (manual)** → upload + **`POST /api/media/analyze-and-save`** (same as before).
+- **Auto-save** runs only when a client **HUD score** from detections crosses a threshold **and** at least **~42 s** have passed since the last auto-save, so the laptop and Mongo/memory are not flooded.
+
+If `takePictureAsync` fails while the camera is in `video` mode on a device, try a dev build or fall back to manual capture; see [apps/mobile/README.md](apps/mobile/README.md).
+
+**Speech hints** during monitor use **expo-speech** with a cooldown and do not replace the server voice path on saved events (`/api/voice/alert`).
