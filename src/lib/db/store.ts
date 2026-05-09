@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { CameraRole, DangerSegment, HazardEvent, HazardType, ReplayPayload, Ride, RideMode } from "@/lib/contracts";
 import { computeDangerSegments, haversineMeters } from "@/lib/geo/danger-segments";
 import { demoDangerSegments, demoEvents, demoRide } from "@/lib/seed/demo-data";
@@ -61,7 +62,7 @@ export function getRide(rideId: string) {
 
 export function buildRide(input: CreateRideInput) {
   return {
-    id: `ride-${Date.now()}`,
+    id: `ride-${randomUUID()}`,
     mode: input.mode,
     startedAt: new Date().toISOString(),
     startLat: input.startLat,
@@ -125,7 +126,7 @@ export function listEvents(filters: EventFilters = {}) {
 
 export function buildEvent(input: Partial<HazardEvent>) {
   return {
-    id: input.id ?? `evt-${Date.now()}`,
+    id: input.id ?? `evt-${randomUUID()}`,
     rideId: input.rideId ?? demoRide.id,
     t: input.t ?? 0,
     timestamp: input.timestamp ?? new Date().toISOString(),

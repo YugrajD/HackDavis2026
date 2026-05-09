@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { listDangerSegments } from "@/lib/db/repository";
+import { jsonError } from "@/lib/api/responses";
 import { parseBbox } from "@/lib/api/validation";
+import { listDangerSegments } from "@/lib/db/repository";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -8,7 +9,7 @@ export async function GET(request: Request) {
   const bbox = parseBbox(rawBbox);
 
   if (rawBbox && !bbox) {
-    return NextResponse.json({ error: "bbox must be westLng,southLat,eastLng,northLat" }, { status: 400 });
+    return jsonError("bbox must be westLng,southLat,eastLng,northLat with valid bounds", 400);
   }
 
   const dangerSegments = await listDangerSegments(bbox ?? undefined);

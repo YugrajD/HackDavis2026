@@ -1,34 +1,40 @@
 import { Buffer } from "node:buffer";
 import { NextResponse } from "next/server";
+import { readJsonBody, handleApiError } from "@/lib/api/responses";
+import { safeText } from "@/lib/api/validation";
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as { text?: string };
-  const text = body.text?.trim() || "Road hazard ahead.";
+  try {
+    const body = await readJsonBody<{ text?: string }>(request, { allowEmpty: true, maxBytes: 16 * 1024 });
+    const text = safeText(body.text, 500) || "Road hazard ahead.";
 
-  if (process.env.ELEVENLABS_API_KEY) {
-    try {
-      const audioUrl = await generateElevenLabsAlert(text);
-      if (audioUrl) {
-        return NextResponse.json({
-          text,
-          audioUrl,
-          provider: "elevenlabs",
-          message: "Generated ElevenLabs alert audio. Clients can play audioUrl directly.",
-        });
+    if (process.env.ELEVENLABS_API_KEY) {
+      try {
+        const audioUrl = await generateElevenLabsAlert(text);
+        if (audioUrl) {
+          return NextResponse.json({
+            text,
+            audioUrl,
+            provider: "elevenlabs",
+            message: "Generated ElevenLabs alert audio. Clients can play audioUrl directly.",
+          });
+        }
+      } catch (error) {
+        console.error("ElevenLabs voice alert generation failed; falling back to native TTS.", error);
       }
-    } catch (error) {
-      console.error("ElevenLabs voice alert generation failed; falling back to native TTS.", error);
     }
-  }
 
-  return NextResponse.json({
-    text,
-    audioUrl: null,
-    provider: "stub",
-    message: process.env.ELEVENLABS_API_KEY
-      ? "ElevenLabs was configured but unavailable. Frontend should use native TTS if audioUrl is null."
-      : "Set ELEVENLABS_API_KEY to enable ElevenLabs audio. Frontend should use native TTS if audioUrl is null.",
-  });
+    return NextResponse.json({
+      text,
+      audioUrl: null,
+      provider: "stub",
+      message: process.env.ELEVENLABS_API_KEY
+        ? "ElevenLabs was configured but unavailable. Frontend should use native TTS if audioUrl is null."
+        : "Set ELEVENLABS_API_KEY to enable ElevenLabs audio. Frontend should use native TTS if audioUrl is null.",
+    });
+  } catch (error) {
+    return handleApiError(error, "Generate voice alert failed.");
+  }
 }
 
 async function generateElevenLabsAlert(text: string) {
@@ -49,7 +55,7 @@ async function generateElevenLabsAlert(text: string) {
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      text: text.slice(0, 500),
+      text,
       model_id: modelId,
       voice_settings: {
         stability: 0.55,

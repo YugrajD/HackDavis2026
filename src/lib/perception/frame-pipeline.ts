@@ -1,35 +1,4 @@
-import type { ActorType, CameraRole, HazardEvent, HazardType, TrackedObject } from "@/lib/contracts";
-
-export type FrameObservation = {
-  frameId: string;
-  capturedAt: string;
-  camera: CameraRole;
-  lat?: number;
-  lng?: number;
-  speedMps?: number;
-  headingDeg?: number;
-  width?: number;
-  height?: number;
-  detections: FrameDetection[];
-};
-
-export type FrameDetection = {
-  id?: string;
-  label: string;
-  confidence: number;
-  bbox?: [number, number, number, number];
-  depthM?: number;
-};
-
-export type TrackState = TrackedObject & {
-  lastFrameId: string;
-  lastSeenAt: string;
-};
-
-export type PerceptionResult = {
-  tracks: TrackState[];
-  hazardDraft: Pick<HazardEvent, "type" | "severity" | "confidence" | "spokenAlert" | "explanation" | "objects" | "camera" | "lat" | "lng" | "headingDeg" | "speedMps" | "timestamp" | "t">;
-};
+import type { ActorType, FrameDetection, FrameObservation, PerceptionResult, PerceptionRisk, RelativeLocation, TrackState } from "@/lib/contracts";
 
 const actorLabels: Array<[RegExp, ActorType]> = [
   [/truck|van/i, "truck"],
@@ -46,7 +15,11 @@ export function analyzeFrameObservation(current: FrameObservation, previous?: Fr
   const risk = scoreRisk(tracks, current);
 
   return {
+    frameId: current.frameId,
+    capturedAt: current.capturedAt,
+    workerVersion: "guardian-road-perception-v1",
     tracks,
+    risk,
     hazardDraft: {
       t: secondsSinceEpoch(current.capturedAt),
       timestamp: current.capturedAt,
@@ -58,7 +31,7 @@ export function analyzeFrameObservation(current: FrameObservation, previous?: Fr
       type: risk.type,
       severity: risk.severity,
       confidence: risk.confidence,
-      spokenAlert: risk.alert,
+      spokenAlert: risk.spokenAlert,
       explanation: risk.explanation,
       objects: tracks,
     },
@@ -75,44 +48,59 @@ function detectionToTrack(detection: FrameDetection, index: number, current: Fra
   const lateralOffset = detection.bbox ? (centerX(detection.bbox) - 0.5) * 4 : 0;
   const forward = distanceM ?? 8;
 
-  return {
+  const track: TrackState = {
     id: detection.id ?? `track-${current.frameId}-${index}`,
     type,
+    label: detection.label,
+    description: detection.description,
+    relativeLocation: detection.relativeLocation ?? relativeLocationFor(lateralOffset, current.camera),
     confidence: clamp(detection.confidence, 0, 1),
     bbox: detection.bbox,
     position: { x: lateralOffset, y: 0, z: current.camera === "rear" ? -forward : forward },
     velocity: { x: 0, y: 0, z: current.camera === "rear" ? closingMps : -closingMps },
     distanceM,
     ttcSec: closingMps > 0 && distanceM !== undefined ? clamp(distanceM / closingMps, 0.1, 30) : undefined,
+    riskScore: 0,
     lastFrameId: current.frameId,
     lastSeenAt: current.capturedAt,
   };
+
+  return { ...track, riskScore: riskForTrack(track, current) };
 }
 
-function scoreRisk(tracks: TrackState[], frame: FrameObservation): { type: HazardType; severity: number; confidence: number; alert: string; explanation: string } {
-  const highest = [...tracks].sort((a, b) => riskForTrack(b, frame) - riskForTrack(a, frame))[0];
+function scoreRisk(tracks: TrackState[], frame: FrameObservation): PerceptionRisk {
+  const highest = [...tracks].sort((a, b) => b.riskScore - a.riskScore)[0];
   if (!highest) {
     return {
       type: "road_obstruction",
       severity: 18,
       confidence: 0.35,
-      alert: "Path clear.",
+      spokenAlert: "Path clear.",
       explanation: "No tracked road actor exceeded the hazard threshold in this frame.",
+      reasons: ["no detections", `camera:${frame.camera}`],
     };
   }
 
-  const severity = riskForTrack(highest, frame);
+  const severity = highest.riskScore;
   const vehicle = ["car", "truck", "bus"].includes(highest.type);
   const vulnerable = ["pedestrian", "bike", "scooter"].includes(highest.type);
   const nearCenter = Math.abs(highest.position?.x ?? 0) < 0.9;
+  const reasons = [
+    `primary:${highest.type}`,
+    `distance:${formatMeters(highest.distanceM)}`,
+    `ttc:${formatSeconds(highest.ttcSec)}`,
+    `relative:${highest.relativeLocation ?? "unknown"}`,
+  ];
 
   if (vehicle && frame.camera === "rear") {
     return {
       type: "vehicle_approach",
       severity,
       confidence: highest.confidence,
-      alert: "Vehicle closing from behind.",
+      spokenAlert: "Vehicle closing from behind.",
       explanation: `Rear ${highest.type} track is ${formatMeters(highest.distanceM)} away with TTC ${formatSeconds(highest.ttcSec)}.`,
+      primaryObjectId: highest.id,
+      reasons,
     };
   }
 
@@ -121,8 +109,10 @@ function scoreRisk(tracks: TrackState[], frame: FrameObservation): { type: Hazar
       type: "close_pass",
       severity,
       confidence: highest.confidence,
-      alert: "Vehicle passing close.",
+      spokenAlert: "Vehicle passing close.",
       explanation: `${highest.type} track sits in the rider clearance buffer at ${formatMeters(highest.distanceM)}.`,
+      primaryObjectId: highest.id,
+      reasons,
     };
   }
 
@@ -131,8 +121,10 @@ function scoreRisk(tracks: TrackState[], frame: FrameObservation): { type: Hazar
       type: "pedestrian_conflict",
       severity,
       confidence: highest.confidence,
-      alert: "Cross traffic risk ahead.",
+      spokenAlert: "Cross traffic risk ahead.",
       explanation: `${highest.type} track intersects the path with estimated TTC ${formatSeconds(highest.ttcSec)}.`,
+      primaryObjectId: highest.id,
+      reasons,
     };
   }
 
@@ -140,8 +132,10 @@ function scoreRisk(tracks: TrackState[], frame: FrameObservation): { type: Hazar
     type: nearCenter ? "road_obstruction" : "blocked_bike_lane",
     severity,
     confidence: highest.confidence,
-    alert: "Road hazard ahead.",
+    spokenAlert: "Road hazard ahead.",
     explanation: `${highest.type} track occupies the projected path at ${formatMeters(highest.distanceM)}.`,
+    primaryObjectId: highest.id,
+    reasons,
   };
 }
 
@@ -169,6 +163,12 @@ function estimateDepthFromBbox(bbox: FrameDetection["bbox"], type: ActorType) {
 
 function centerX(bbox: [number, number, number, number]) {
   return (bbox[0] + bbox[2]) / 2;
+}
+
+function relativeLocationFor(lateralOffset: number, camera: FrameObservation["camera"]): RelativeLocation {
+  if (lateralOffset < -0.9) return "left";
+  if (lateralOffset > 0.9) return "right";
+  return camera === "rear" ? "behind" : "ahead";
 }
 
 function secondsSinceEpoch(timestamp: string) {

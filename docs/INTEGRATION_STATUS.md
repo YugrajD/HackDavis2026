@@ -18,6 +18,7 @@ Update this whenever a shared contract changes or someone is blocked.
 - Added memory-backed API stubs for ride creation/end, event creation/batch/nearby, frame analysis, report generation, and voice alerts.
 - Added `/api/media/upload` for frame/clip evidence stored under `public/generated/uploads`, returning `clipUrl` and `thumbnailUrl` for hazard events.
 - Added reuse ports/helpers: `/api/scenarios`, `/api/media/analyze-and-save`, `/api/reports/export`, a Spark/Three `SplatViewer`, perception worker helpers, hotspot utilities, and report exporters.
+- Backend readiness pass added JSON error envelopes, bounded JSON bodies, stricter media MIME/signature checks, route parameter safeguards, and deployment notes in `docs/BACKEND_DEPLOYMENT.md`.
 
 ## Current integration assumptions
 

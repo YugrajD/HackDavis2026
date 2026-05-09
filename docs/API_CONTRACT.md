@@ -67,6 +67,64 @@ export type TrackedObject = {
   ttcSec?: number;
 };
 
+export type RelativeLocation = "ahead" | "behind" | "left" | "right" | "center" | "unknown";
+
+export type FrameDetection = {
+  id?: string;
+  label: string;
+  description?: string;
+  confidence: number;
+  bbox?: [number, number, number, number];
+  depthM?: number;
+  relativeLocation?: RelativeLocation;
+};
+
+export type FrameObservation = {
+  frameId: string;
+  capturedAt: string;
+  camera: CameraRole;
+  lat?: number;
+  lng?: number;
+  speedMps?: number;
+  headingDeg?: number;
+  width?: number;
+  height?: number;
+  detections: FrameDetection[];
+};
+
+export type TrackState = TrackedObject & {
+  label?: string;
+  description?: string;
+  relativeLocation?: RelativeLocation;
+  riskScore: number;
+  lastFrameId: string;
+  lastSeenAt: string;
+};
+
+export type PerceptionRisk = {
+  type: HazardType;
+  severity: number;
+  confidence: number;
+  spokenAlert: string;
+  explanation: string;
+  primaryObjectId?: string;
+  reasons: string[];
+};
+
+export type HazardEventDraft = Pick<
+  HazardEvent,
+  "type" | "severity" | "confidence" | "spokenAlert" | "explanation" | "objects" | "camera" | "lat" | "lng" | "headingDeg" | "speedMps" | "timestamp" | "t"
+>;
+
+export type PerceptionResult = {
+  frameId: string;
+  capturedAt: string;
+  workerVersion: "guardian-road-perception-v1";
+  tracks: TrackState[];
+  risk: PerceptionRisk;
+  hazardDraft: HazardEventDraft;
+};
+
 export type HazardEvent = {
   id: string;
   rideId: string;
@@ -118,6 +176,20 @@ export type ReplayPayload = {
   events: HazardEvent[];
   dangerSegments: DangerSegment[];
   generatedAt: string;
+};
+
+export type AnalyzeFrameResponse = Pick<HazardEvent, "type" | "severity" | "confidence" | "spokenAlert" | "explanation" | "objects"> & {
+  provider: "gemini" | "perception" | "stub";
+  perception?: PerceptionResult;
+  note?: string;
+};
+
+export type AnalyzeAndSaveMediaResponse = {
+  event: HazardEvent;
+  persisted: "memory" | "mongodb";
+  provider: "gemini" | "perception" | "stub";
+  perception?: PerceptionResult;
+  message: string;
 };
 ```
 

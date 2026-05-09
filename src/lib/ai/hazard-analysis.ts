@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI, SchemaType, type ResponseSchema } from "@google/generative-ai";
-import type { ActorType, CameraRole, HazardEvent, HazardType, TrackedObject } from "@/lib/contracts";
+import type { ActorType, CameraRole, HazardEvent, HazardType, PerceptionResult, TrackedObject } from "@/lib/contracts";
 
 export type AnalyzeFrameInput = {
   imageBase64?: string;
@@ -8,6 +8,7 @@ export type AnalyzeFrameInput = {
   speedMps?: number;
   headingDeg?: number;
   camera?: CameraRole;
+  perception?: PerceptionResult;
 };
 
 export type AnalyzeFrameOutput = Pick<
@@ -57,6 +58,8 @@ const hazardSchema: ResponseSchema = {
 };
 
 export function analyzeFrameStub(input: AnalyzeFrameInput): AnalyzeFrameOutput {
+  if (input.perception?.tracks.length) return outputFromPerception(input.perception);
+
   if (input.camera === "rear") {
     return {
       type: "vehicle_approach",
@@ -125,15 +128,36 @@ Context:
 - speedMps: ${formatNumber(input.speedMps)}
 - headingDeg: ${formatNumber(input.headingDeg)}
 - camera: ${input.camera ?? "front"}
+- local perception: ${perceptionSummary(input.perception)}
 
 Use the allowed hazard types exactly: ${hazardTypes.join(", ")}.
-Score severity by near-term rider/driver risk. Keep spokenAlert short enough for real-time voice playback. If no clear hazard is visible, return road_obstruction with low severity and low confidence rather than inventing a specific object.`,
+Score severity by near-term rider/driver risk. Treat local perception as a tracking prior, but override it when the image contradicts it. Keep spokenAlert short enough for real-time voice playback. If no clear hazard is visible, return road_obstruction with low severity and low confidence rather than inventing a specific object.`,
     },
     { inlineData: image },
   ]);
 
   const parsed = parseJsonObject(result.response.text());
   return normalizeAnalysis(parsed, input);
+}
+
+function outputFromPerception(perception: PerceptionResult): AnalyzeFrameOutput {
+  return {
+    type: perception.hazardDraft.type,
+    severity: perception.hazardDraft.severity,
+    confidence: perception.hazardDraft.confidence,
+    spokenAlert: perception.hazardDraft.spokenAlert,
+    explanation: perception.hazardDraft.explanation,
+    objects: perception.tracks,
+  };
+}
+
+function perceptionSummary(perception?: PerceptionResult) {
+  if (!perception) return "none";
+  const tracks = perception.tracks
+    .slice(0, 6)
+    .map((track) => `${track.id}:${track.type}:${track.relativeLocation ?? "unknown"}:d=${formatNumber(track.distanceM)}:ttc=${formatNumber(track.ttcSec)}:risk=${track.riskScore}`)
+    .join("; ");
+  return `risk=${perception.risk.type}/${perception.risk.severity}, tracks=[${tracks || "none"}]`;
 }
 
 function parseImage(imageBase64?: string) {
@@ -159,7 +183,7 @@ function normalizeAnalysis(value: unknown, input: AnalyzeFrameInput): AnalyzeFra
   const explanation = toNonEmptyString(value.explanation, fallback.explanation).slice(0, 500);
   const objects = Array.isArray(value.objects) ? value.objects.map(normalizeObject).filter((item): item is TrackedObject => Boolean(item)) : [];
 
-  return { type, severity, confidence, spokenAlert, explanation, objects };
+  return { type, severity, confidence, spokenAlert, explanation, objects: objects.length ? objects : (input.perception?.tracks ?? []) };
 }
 
 function normalizeObject(value: unknown): TrackedObject | null {

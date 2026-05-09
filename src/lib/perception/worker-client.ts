@@ -1,4 +1,4 @@
-import type { PerceptionResult, FrameObservation } from "@/lib/perception/frame-pipeline";
+import type { FrameObservation, PerceptionResult } from "@/lib/contracts";
 
 export type PerceptionWorkerRequest = {
   id: string;

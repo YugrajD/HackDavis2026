@@ -2,11 +2,14 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
+import { ApiError, handleApiError, jsonError, readJsonBody } from "@/lib/api/responses";
 import type { MediaUploadResponse, UploadedMedia } from "@/lib/contracts";
 
 export const runtime = "nodejs";
 
-const MAX_BYTES = 12 * 1024 * 1024;
+const MAX_THUMBNAIL_BYTES = 4 * 1024 * 1024;
+const MAX_CLIP_BYTES = 12 * 1024 * 1024;
+const MAX_REQUEST_BYTES = MAX_THUMBNAIL_BYTES + MAX_CLIP_BYTES + 1024 * 1024;
 const UPLOAD_ROOT = path.join(process.cwd(), "public", "generated", "uploads");
 const PUBLIC_PREFIX = "/generated/uploads";
 
@@ -32,24 +35,24 @@ type JsonUploadBody = {
 
 export async function POST(request: Request) {
   try {
+    const contentLength = Number(request.headers.get("content-length") ?? 0);
+    if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
+      return jsonError(`Upload request exceeds ${Math.round(MAX_REQUEST_BYTES / 1024 / 1024)}MB limit.`, 413);
+    }
+
     const candidates = await readCandidates(request);
     if (!candidates.length) {
-      return NextResponse.json(
-        { error: "Send multipart fields frame/image/thumbnail/clip or JSON imageBase64/frameBase64/thumbnailBase64/clipBase64." },
-        { status: 400 },
-      );
+      return jsonError("Send multipart fields frame/image/thumbnail/clip or JSON imageBase64/frameBase64/thumbnailBase64/clipBase64.", 400);
     }
 
     await mkdir(UPLOAD_ROOT, { recursive: true });
 
     const stored: UploadedMedia[] = [];
     for (const candidate of candidates) {
-      const contentType = normalizeContentType(candidate.contentType, candidate.kind);
-      if (!contentType) {
-        return NextResponse.json({ error: `Unsupported ${candidate.kind} media type.` }, { status: 415 });
-      }
-      if (candidate.data.byteLength > MAX_BYTES) {
-        return NextResponse.json({ error: `Media exceeds ${Math.round(MAX_BYTES / 1024 / 1024)}MB limit.` }, { status: 413 });
+      const contentType = resolveContentType(candidate);
+      const maxBytes = candidate.kind === "thumbnail" ? MAX_THUMBNAIL_BYTES : MAX_CLIP_BYTES;
+      if (candidate.data.byteLength > maxBytes) {
+        return jsonError(`${candidate.kind} media exceeds ${Math.round(maxBytes / 1024 / 1024)}MB limit.`, 413);
       }
 
       const filename = `${candidate.kind}-${Date.now()}-${randomUUID()}${extensionFor(contentType)}`;
@@ -73,7 +76,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(response, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Media upload failed." }, { status: 400 });
+    return handleApiError(error, "Media upload failed.");
   }
 }
 
@@ -83,7 +86,7 @@ async function readCandidates(request: Request): Promise<MediaCandidate[]> {
     return readFormCandidates(await request.formData());
   }
 
-  const body = (await request.json()) as JsonUploadBody;
+  const body = await readJsonBody<JsonUploadBody>(request, { maxBytes: MAX_REQUEST_BYTES });
   const candidates: MediaCandidate[] = [];
   const imageMimeType = stringValue(body.imageMimeType) ?? stringValue(body.mimeType);
   const clipMimeType = stringValue(body.clipMimeType) ?? stringValue(body.mimeType);
@@ -118,6 +121,7 @@ async function addFormValue(candidates: MediaCandidate[], kind: MediaKind, value
   }
 
   const data = Buffer.from(await value.arrayBuffer());
+  if (!data.byteLength) throw new ApiError(400, "Uploaded media was empty.");
   candidates.push({ kind, data, contentType: value.type });
 }
 
@@ -131,9 +135,13 @@ function decodeBase64Candidate(kind: MediaKind, value: string, fallbackContentTy
   const match = /^data:([^;]+);base64,([\s\S]+)$/.exec(trimmed);
   const contentType = match?.[1] ?? fallbackContentType;
   const base64 = (match?.[2] ?? trimmed).replace(/\s/g, "");
-  const data = Buffer.from(base64, "base64");
 
-  if (!data.byteLength) throw new Error("Decoded media was empty.");
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64) || base64.length % 4 !== 0) {
+    throw new ApiError(400, "Media must be valid base64.");
+  }
+
+  const data = Buffer.from(base64, "base64");
+  if (!data.byteLength) throw new ApiError(400, "Decoded media was empty.");
   return { kind, data, contentType };
 }
 
@@ -146,15 +154,46 @@ function dedupeByKind(candidates: MediaCandidate[]) {
   });
 }
 
+function resolveContentType(candidate: MediaCandidate) {
+  const declared = normalizeContentType(candidate.contentType, candidate.kind);
+  const detected = detectContentType(candidate.data, candidate.kind);
+
+  if (!declared && !detected) {
+    throw new ApiError(415, `Unsupported ${candidate.kind} media type.`);
+  }
+
+  if (declared && detected && declared !== detected) {
+    throw new ApiError(415, `${candidate.kind} media type does not match file bytes.`);
+  }
+
+  return detected ?? declared!;
+}
+
 function normalizeContentType(contentType: string | undefined, kind: MediaKind) {
   const normalized = contentType?.split(";")[0]?.trim().toLowerCase();
   if (kind === "thumbnail") {
-    if (!normalized) return "image/jpeg";
-    return ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(normalized) ? normalized : null;
+    if (!normalized) return null;
+    return ["image/jpeg", "image/png", "image/webp"].includes(normalized) ? normalized : null;
   }
 
-  if (!normalized) return "video/webm";
+  if (!normalized) return null;
   return ["video/mp4", "video/webm", "video/quicktime"].includes(normalized) ? normalized : null;
+}
+
+function detectContentType(data: Buffer, kind: MediaKind) {
+  if (kind === "thumbnail") {
+    if (data.length >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return "image/jpeg";
+    if (data.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
+    if (data.length >= 12 && data.toString("ascii", 0, 4) === "RIFF" && data.toString("ascii", 8, 12) === "WEBP") return "image/webp";
+    return null;
+  }
+
+  if (data.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))) return "video/webm";
+  if (data.length >= 12 && data.toString("ascii", 4, 8) === "ftyp") {
+    const brand = data.toString("ascii", 8, 12).toLowerCase();
+    return brand.startsWith("qt") ? "video/quicktime" : "video/mp4";
+  }
+  return null;
 }
 
 function extensionFor(contentType: string) {
@@ -163,8 +202,6 @@ function extensionFor(contentType: string) {
       return ".png";
     case "image/webp":
       return ".webp";
-    case "image/gif":
-      return ".gif";
     case "video/mp4":
       return ".mp4";
     case "video/quicktime":

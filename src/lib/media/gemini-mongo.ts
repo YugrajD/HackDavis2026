@@ -1,4 +1,4 @@
-import type { CameraRole, HazardEvent } from "@/lib/contracts";
+import type { CameraRole, HazardEvent, PerceptionResult } from "@/lib/contracts";
 import { analyzeFrameStub, analyzeFrameWithGemini } from "@/lib/ai/hazard-analysis";
 import { createEvent, type PersistenceMode } from "@/lib/db/repository";
 
@@ -13,12 +13,14 @@ export type AnalyzeAndPersistMediaInput = {
   camera?: CameraRole;
   clipUrl?: string;
   thumbnailUrl?: string;
+  perception?: PerceptionResult;
 };
 
 export type AnalyzeAndPersistMediaOutput = {
   event: HazardEvent;
   persisted: PersistenceMode;
-  provider: "gemini" | "stub";
+  provider: "gemini" | "perception" | "stub";
+  perception?: PerceptionResult;
 };
 
 export async function analyzeAndPersistMedia(input: AnalyzeAndPersistMediaInput): Promise<AnalyzeAndPersistMediaOutput> {
@@ -28,13 +30,13 @@ export async function analyzeAndPersistMedia(input: AnalyzeAndPersistMediaInput)
 
   if (!analysis) {
     analysis = analyzeFrameStub(input);
-    resolvedProvider = "stub";
+    resolvedProvider = input.perception?.tracks.length ? "perception" : "stub";
   }
 
   const { value: event, persisted } = await createEvent({
     rideId: input.rideId,
-    t: input.t,
-    timestamp: new Date().toISOString(),
+    t: input.t ?? input.perception?.hazardDraft.t,
+    timestamp: input.perception?.hazardDraft.timestamp ?? new Date().toISOString(),
     lat: input.lat,
     lng: input.lng,
     headingDeg: input.headingDeg,
@@ -45,7 +47,7 @@ export async function analyzeAndPersistMedia(input: AnalyzeAndPersistMediaInput)
     ...analysis,
   });
 
-  return { event, persisted, provider: resolvedProvider };
+  return { event, persisted, provider: resolvedProvider, perception: input.perception };
 }
 
 export function mediaEvidenceSummary(event: HazardEvent) {
