@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { CameraRole, HazardEvent, MediaUploadResponse, TrackedObject } from "@/lib/contracts";
+import type { AnalyzeAndSaveMediaResponse, CameraRole, FrameDetection, FrameObservation, HazardEvent, MediaUploadResponse, PerceptionResult, TrackedObject } from "@/lib/contracts";
+import { analyzeFrameObservation } from "@/lib/perception/frame-pipeline";
+import { analyzeFrameInWorker, createPerceptionWorker } from "@/lib/perception/worker-client";
 
 type AnalysisResponse = Pick<HazardEvent, "type" | "severity" | "confidence" | "spokenAlert" | "explanation" | "objects"> & {
   provider: string;
+  perception?: PerceptionResult;
 };
 
 type VoiceResponse = {
@@ -19,6 +22,7 @@ type CaptureLocation = {
 };
 
 type CaptureStatus = "idle" | "camera-ready" | "capturing" | "saved" | "error";
+type PerceptionPreset = "rear_vehicle" | "close_pass" | "blocked_lane" | "cross_traffic" | "clear";
 
 const fallbackLocation: CaptureLocation = { lat: 38.5449, lng: -121.7405 };
 
@@ -26,12 +30,15 @@ export default function CapturePage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const workerRef = useRef<Worker | null>(null);
+  const previousFrameRef = useRef<FrameObservation | undefined>(undefined);
   const startedAtRef = useRef<number>(Date.now());
 
   const [camera, setCamera] = useState<CameraRole>("front");
   const [rideId, setRideId] = useState("demo-ride-1");
   const [speedMps, setSpeedMps] = useState(4.6);
   const [headingDeg, setHeadingDeg] = useState(90);
+  const [perceptionPreset, setPerceptionPreset] = useState<PerceptionPreset>("rear_vehicle");
   const [location, setLocation] = useState<CaptureLocation>(fallbackLocation);
   const [status, setStatus] = useState<CaptureStatus>("idle");
   const [message, setMessage] = useState("Open camera, capture one frame, save it as a hazard event.");
@@ -54,6 +61,14 @@ export default function CapturePage() {
 
     return () => navigator.geolocation.clearWatch(watcher);
   }, [headingDeg, speedMps]);
+
+  useEffect(() => {
+    workerRef.current = createPerceptionWorker();
+    return () => {
+      workerRef.current?.terminate();
+      workerRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     void startCamera();
@@ -85,6 +100,17 @@ export default function CapturePage() {
     streamRef.current = null;
   }
 
+  async function runPerception(frame: FrameObservation) {
+    const worker = workerRef.current;
+    if (!worker) return analyzeFrameObservation(frame, previousFrameRef.current);
+
+    try {
+      return await analyzeFrameInWorker(worker, frame, previousFrameRef.current);
+    } catch {
+      return analyzeFrameObservation(frame, previousFrameRef.current);
+    }
+  }
+
   async function captureAndIngest() {
     if (!videoRef.current || !canvasRef.current) return;
 
@@ -95,44 +121,34 @@ export default function CapturePage() {
       const imageBase64 = captureFrame(videoRef.current, canvasRef.current);
       setLastFrame(imageBase64);
 
-      const [mediaUpload, frameAnalysis] = await Promise.all([
+      const frameObservation = buildFrameObservation(videoRef.current, { camera, location, speedMps, headingDeg, preset: perceptionPreset });
+      const [mediaUpload, perception] = await Promise.all([
         postJson<MediaUploadResponse>("/api/media/upload", { imageBase64, imageMimeType: "image/jpeg" }),
-        postJson<AnalysisResponse>("/api/ai/analyze-frame", {
-          imageBase64,
-          lat: location.lat,
-          lng: location.lng,
-          speedMps,
-          headingDeg,
-          camera,
-        }),
+        runPerception(frameObservation),
       ]);
+      previousFrameRef.current = frameObservation;
 
-      setAnalysis(frameAnalysis);
-
-      const eventResponse = await postJson<{ event: HazardEvent }>("/api/events", {
+      const saved = await postJson<AnalyzeAndSaveMediaResponse>("/api/media/analyze-and-save", {
+        imageBase64,
         rideId: rideId.trim() || "demo-ride-1",
         t: Math.round((Date.now() - startedAtRef.current) / 1000),
-        timestamp: new Date().toISOString(),
-        type: frameAnalysis.type,
-        severity: frameAnalysis.severity,
-        confidence: frameAnalysis.confidence,
         lat: location.lat,
         lng: location.lng,
-        headingDeg,
         speedMps,
+        headingDeg,
         camera,
-        spokenAlert: frameAnalysis.spokenAlert,
-        explanation: frameAnalysis.explanation,
         clipUrl: mediaUpload.clipUrl,
         thumbnailUrl: mediaUpload.thumbnailUrl,
-        objects: frameAnalysis.objects,
-      } satisfies Partial<HazardEvent>);
+        perception,
+      });
 
-      setLastEvent(eventResponse.event);
+      const frameAnalysis: AnalysisResponse = { ...saved.event, provider: saved.provider, perception: saved.perception };
+      setAnalysis(frameAnalysis);
+      setLastEvent(saved.event);
       setStatus("saved");
-      setMessage(`Saved ${frameAnalysis.type.replaceAll("_", " ")} at severity ${Math.round(frameAnalysis.severity)}.`);
+      setMessage(`Saved ${saved.event.type.replaceAll("_", " ")} at severity ${Math.round(saved.event.severity)} via ${saved.provider}.`);
 
-      const voice = await postJson<VoiceResponse>("/api/voice/alert", { text: frameAnalysis.spokenAlert });
+      const voice = await postJson<VoiceResponse>("/api/voice/alert", { text: saved.event.spokenAlert });
       playVoiceAlert(voice);
     } catch (error) {
       setStatus("error");
@@ -195,6 +211,20 @@ export default function CapturePage() {
                   <option value="dashcam">dashcam</option>
                 </select>
               </label>
+              <label className="grid gap-1 text-sm text-slate-300">
+                Worker perception seed
+                <select
+                  className="rounded-2xl border border-white/10 bg-slate-950 px-3 py-2 text-white outline-none focus:border-cyanline"
+                  value={perceptionPreset}
+                  onChange={(event) => setPerceptionPreset(event.target.value as PerceptionPreset)}
+                >
+                  <option value="rear_vehicle">rear vehicle closing</option>
+                  <option value="close_pass">left close pass</option>
+                  <option value="blocked_lane">blocked bike lane</option>
+                  <option value="cross_traffic">cross traffic</option>
+                  <option value="clear">clear path</option>
+                </select>
+              </label>
               <div className="grid grid-cols-2 gap-3">
                 <NumberField label="Speed m/s" value={speedMps} onChange={setSpeedMps} />
                 <NumberField label="Heading" value={headingDeg} onChange={setHeadingDeg} />
@@ -213,8 +243,10 @@ export default function CapturePage() {
                   <span className="text-slate-300">{analysis.type.replaceAll("_", " ")}</span>
                   <span className="rounded-full bg-critical/15 px-3 py-1 font-mono text-red-200">{Math.round(analysis.severity)}</span>
                 </div>
+                <p className="font-mono text-xs uppercase tracking-[0.18em] text-cyanline">provider {analysis.provider}</p>
                 <p className="text-slate-300">{analysis.spokenAlert}</p>
                 <p className="text-slate-400">{analysis.explanation}</p>
+                {analysis.perception ? <p className="font-mono text-xs text-slate-500">worker risk {analysis.perception.risk.type} · {Math.round(analysis.perception.risk.severity)} · {analysis.perception.tracks.length} tracks</p> : null}
                 <ObjectList objects={analysis.objects} />
                 {lastEvent ? <p className="font-mono text-xs text-cyanline">event {lastEvent.id}</p> : null}
               </div>
@@ -228,6 +260,40 @@ export default function CapturePage() {
       </section>
     </main>
   );
+}
+
+function buildFrameObservation(
+  video: HTMLVideoElement,
+  context: { camera: CameraRole; location: CaptureLocation; speedMps: number; headingDeg: number; preset: PerceptionPreset },
+): FrameObservation {
+  const capturedAt = new Date().toISOString();
+  return {
+    frameId: `capture-${Date.now()}`,
+    capturedAt,
+    camera: context.camera,
+    lat: context.location.lat,
+    lng: context.location.lng,
+    speedMps: context.speedMps,
+    headingDeg: context.headingDeg,
+    width: video.videoWidth || 1280,
+    height: video.videoHeight || 720,
+    detections: seededDetections(context.preset),
+  };
+}
+
+function seededDetections(preset: PerceptionPreset): FrameDetection[] {
+  switch (preset) {
+    case "rear_vehicle":
+      return [{ id: "rear-car-1", label: "car", description: "Vehicle closing in rear camera lane", confidence: 0.88, bbox: [0.18, 0.24, 0.54, 0.75], depthM: 5.4, relativeLocation: "behind" }];
+    case "close_pass":
+      return [{ id: "left-pass-1", label: "sedan", description: "Vehicle offset inside rider clearance buffer", confidence: 0.84, bbox: [0.02, 0.18, 0.35, 0.82], depthM: 3.8, relativeLocation: "left" }];
+    case "blocked_lane":
+      return [{ id: "cone-lane-1", label: "traffic cone", description: "Cone or obstacle in bike lane", confidence: 0.79, bbox: [0.44, 0.48, 0.58, 0.9], depthM: 4.2, relativeLocation: "ahead" }];
+    case "cross_traffic":
+      return [{ id: "ped-cross-1", label: "pedestrian", description: "Pedestrian or cyclist entering path", confidence: 0.81, bbox: [0.5, 0.22, 0.68, 0.82], depthM: 6.1, relativeLocation: "right" }];
+    case "clear":
+      return [];
+  }
 }
 
 function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {

@@ -18,6 +18,7 @@ Update this whenever a shared contract changes or someone is blocked.
 - Added memory-backed API stubs for ride creation/end, event creation/batch/nearby, frame analysis, report generation, and voice alerts.
 - Added `/api/media/upload` for frame/clip evidence stored under `public/generated/uploads`, returning `clipUrl` and `thumbnailUrl` for hazard events.
 - Added reuse ports/helpers: `/api/scenarios`, `/api/media/analyze-and-save`, `/api/reports/export`, a Spark/Three `SplatViewer`, perception worker helpers, hotspot utilities, and report exporters.
+- Added PathSense-style perception contracts for frame detections, local tracks, risk payloads, and worker output. `/api/ai/analyze-frame` and `/api/media/analyze-and-save` now accept optional `perception` payloads and can return provider `perception` when Gemini is not configured.
 - Backend readiness pass added JSON error envelopes, bounded JSON bodies, stricter media MIME/signature checks, route parameter safeguards, and deployment notes in `docs/BACKEND_DEPLOYMENT.md`.
 
 ## Current integration assumptions
@@ -26,7 +27,7 @@ Update this whenever a shared contract changes or someone is blocked.
 - Replay should load `/api/replay/demo-ride-1`.
 - Records should load `/api/events?rideId=demo-ride-1` and `/api/danger-segments`.
 - Seed endpoint should be `/api/seed/demo`.
-- Capture ingestion page is `/capture`; it posts a frame to `/api/media/upload`, analyzes it through `/api/ai/analyze-frame`, saves the returned event through `/api/events`, and asks `/api/voice/alert` for alert audio or native TTS fallback.
+- Capture ingestion page is `/capture`; it posts a frame to `/api/media/upload`, runs the browser perception worker, sends frame + media URLs + worker output to `/api/media/analyze-and-save`, and asks `/api/voice/alert` for alert audio or native TTS fallback.
 
 ## Blockers
 

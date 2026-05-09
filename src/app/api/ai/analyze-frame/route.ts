@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     if (process.env.GEMINI_API_KEY) {
       try {
         const analysis = await analyzeFrameWithGemini(input);
-        if (analysis) return NextResponse.json({ ...analysis, provider: "gemini" });
+        if (analysis) return NextResponse.json({ ...analysis, provider: "gemini", perception: input.perception });
       } catch (error) {
         console.error("Gemini frame analysis failed; falling back to deterministic stub.", error);
       }

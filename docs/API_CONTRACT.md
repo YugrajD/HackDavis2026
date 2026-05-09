@@ -304,14 +304,22 @@ Request:
   "headingDeg": 90,
   "camera": "front",
   "thumbnailUrl": "/generated/uploads/thumbnail.jpg",
-  "clipUrl": "/generated/uploads/clip.webm"
+  "clipUrl": "/generated/uploads/clip.webm",
+  "perception": {
+    "frameId": "capture-1",
+    "capturedAt": "2026-05-09T00:00:00.000Z",
+    "workerVersion": "guardian-road-perception-v1",
+    "tracks": [],
+    "risk": { "type": "close_pass", "severity": 88, "confidence": 0.91, "spokenAlert": "Vehicle passing close.", "explanation": "Local tracker estimated close-pass risk.", "reasons": [] },
+    "hazardDraft": {}
+  }
 }
 ```
 
 Response:
 
 ```json
-{ "event": {}, "persisted": "memory", "provider": "gemini" }
+{ "event": {}, "persisted": "memory", "provider": "gemini", "perception": {} }
 ```
 
 ### `POST /api/events/batch`
@@ -408,9 +416,17 @@ Request:
   "lng": -121.7405,
   "speedMps": 5.6,
   "headingDeg": 90,
-  "camera": "front"
+  "camera": "front",
+  "perception": {
+    "frameId": "capture-1",
+    "tracks": [],
+    "risk": {},
+    "hazardDraft": {}
+  }
 }
 ```
+
+`perception` is optional. Browser clients can send the PathSense-style worker output when local tracking/depth/TTC is available; Gemini uses it as a prior, and the deterministic backend can save it directly when no API key is configured.
 
 Response:
 
@@ -422,7 +438,8 @@ Response:
   "spokenAlert": "Vehicle closing fast on your left.",
   "explanation": "A vehicle is approaching close to the rider's left side.",
   "objects": [],
-  "provider": "stub"
+  "provider": "perception",
+  "perception": {}
 }
 ```
 
