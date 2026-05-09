@@ -87,10 +87,11 @@ Optional full smoke check:
 npm run typecheck
 npm run build
 npm run smoke:api
+npm run smoke:report
 npm run smoke:yolo
 ```
 
-`npm run smoke:api` starts a temporary Next server if `API_BASE_URL` is not set, seeds demo data, exercises readiness/provider status plus replay/events/media/report/scenario endpoints, verifies the persisted report `exportUrl`, and stops the server. `npm run smoke:yolo` checks provider YOLO readiness plus `POST /api/perception/detect` when a Next server is reachable; it exits 0 with a skip note when the server is down or `YOLO_SERVICE_URL` is unset.
+`npm run smoke:api` starts a temporary Next server if `API_BASE_URL` is not set, seeds demo data, exercises readiness/provider status plus replay/events/media/report/scenario endpoints, verifies the persisted report `exportUrl`, and stops the server. `npm run smoke:report` exercises `/api/ai/report` and `/api/reports/export` against `GUARDIAN_ROAD_BASE_URL`, then `API_BASE_URL`, then `http://localhost:3000`; it preserves `GUARDIAN_ROAD_BASE_URL` for existing report-export workflows. `npm run smoke:yolo` checks provider YOLO readiness plus `POST /api/perception/detect` when a Next server is reachable; it exits 0 with a skip note when the server is down or `YOLO_SERVICE_URL` is unset.
 
 ## Repo reuse permission note
 

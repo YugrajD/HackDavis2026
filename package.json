@@ -8,6 +8,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "smoke:api": "node scripts/smoke-api-arc.mjs",
+    "smoke:report": "node scripts/smoke-report-export.mjs",
     "smoke:yolo": "node scripts/smoke-yolo-detect.mjs",
     "scenarios:generate": "node scripts/generate-road-scenarios.mjs",
     "mobile:start": "npm --prefix apps/mobile run start",

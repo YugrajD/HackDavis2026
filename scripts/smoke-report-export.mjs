@@ -1,4 +1,4 @@
-const baseUrl = (process.env.GUARDIAN_ROAD_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+const baseUrl = (process.env.GUARDIAN_ROAD_BASE_URL ?? process.env.API_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
 const segmentId = process.env.GUARDIAN_ROAD_SEGMENT_ID ?? "seg-russell-olive";
 
 async function requestJson(path, init = {}) {
