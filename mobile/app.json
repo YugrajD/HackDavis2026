@@ -16,7 +16,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "app.guardianroad.mobile",
       "infoPlist": {
-        "NSCameraUsageDescription": "Guardian Road uses the camera to detect shared-road hazards in rider and driver modes."
+        "NSCameraUsageDescription": "Guardian Road uses the camera to detect shared-road hazards in rider and driver modes.",
+        "NSMicrophoneUsageDescription": "Required by the camera framework."
       }
     },
     "android": {
@@ -36,13 +37,15 @@
     },
     "plugins": [
       [
-        "expo-camera",
+        "react-native-vision-camera",
         {
-          "cameraPermission": "Guardian Road uses the camera to detect shared-road hazards in rider and driver modes."
+          "cameraPermissionText": "Guardian Road uses the camera to detect shared-road hazards in rider and driver modes.",
+          "enableMicrophonePermission": false
         }
       ],
       "expo-asset",
-      "react-native-fast-tflite"
+      "react-native-fast-tflite",
+      "react-native-worklets-core"
     ]
   }
 }
