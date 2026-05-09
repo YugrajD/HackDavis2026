@@ -13,6 +13,7 @@ Guardian Road turns phones into road safety sensors. Bike/scooter phones warn ri
 - `docs/REUSE_PLAN.md` — what to reuse from inspiration repos.
 - `docs/INTEGRATION_STATUS.md` — blockers and contract changes.
 - `docs/BACKEND_WIRED_RUNBOOK.md` — wired endpoints, env keys, judge demo runbook, reuse permission, and remaining work.
+- `docs/YOLO_MOBILE_RUNBOOK.md` — Next + YOLO sidecar + Expo handoff over LAN Wi-Fi.
 
 ## Core loop
 

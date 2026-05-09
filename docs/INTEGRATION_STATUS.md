@@ -4,7 +4,7 @@ Update this whenever a shared contract changes or someone is blocked.
 
 ## Backend wired handoff
 
-Backend is ready for friends and judges. The complete endpoint matrix, env keys, runbook, repo reuse permission note, and remaining-work list live in `docs/BACKEND_WIRED_RUNBOOK.md`.
+Backend is ready for friends and judges. The complete endpoint matrix, env keys, runbook, repo reuse permission note, and remaining-work list live in `docs/BACKEND_WIRED_RUNBOOK.md`. The phone capture handoff for Next + YOLO + Expo lives in `docs/YOLO_MOBILE_RUNBOOK.md`.
 
 Use this sequence for demos. Terminal A:
 
@@ -33,7 +33,7 @@ No vendor key is required for the local demo. Real `MONGODB_URI`, `GEMINI_API_KE
 | 3D Replay | Replay friend | `src/app/replay/**`, `src/components/replay/**` | Unblocked by `/api/replay/demo-ride-1` |
 | Records | Records friend | `src/app/records/**`, `src/components/records/**` | Unblocked by `/api/events`, `/api/danger-segments`, `/api/ai/report`, `/api/reports/export` |
 | Shell/design/docs | Orchestrator | `src/app/page.tsx`, `src/components/shell/**`, `docs/**` | Shell scaffolded |
-| Mobile (Expo) | Orchestrator / team | `apps/mobile/**` | Wi‑Fi capture → same APIs as web; set `EXPO_PUBLIC_API_BASE_URL` to laptop LAN |
+| Mobile (Expo) | Orchestrator / team | `apps/mobile/**` | Wi‑Fi capture → same APIs as web; set `EXPO_PUBLIC_API_BASE_URL` to laptop LAN; see `docs/YOLO_MOBILE_RUNBOOK.md` |
 
 ## Shared contract changes
 
