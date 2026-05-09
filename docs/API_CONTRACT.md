@@ -54,6 +54,7 @@ export const CAMERA_ROLES = ["front", "rear", "dashcam"] as const satisfies read
 
 export const PROVIDER_NAMES = {
   gemini: "gemini",
+  yolo: "yolo",
   perception: "perception",
   stub: "stub",
   claude: "claude",
@@ -300,6 +301,7 @@ export type ReportExportPayload = {
   document: string;
   filename: string;
   contentType: string;
+  exportUrl?: string;
   generatedAt: string;
   events: Array<Pick<HazardEvent, "id" | "timestamp" | "type" | "severity" | "lat" | "lng" | "camera" | "explanation">>;
 };
@@ -316,6 +318,8 @@ export type AnalyzeAndSaveMediaResponse = {
   provider: "gemini" | "perception" | "stub";
   perception?: PerceptionResult;
   message: string;
+  /** Populated when `useYolo` was set but the sidecar failed or returned an error note. */
+  yoloNote?: string;
 };
 
 export type YoloProviderStatus = {
