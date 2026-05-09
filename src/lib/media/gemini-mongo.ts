@@ -34,18 +34,19 @@ export async function analyzeAndPersistMedia(input: AnalyzeAndPersistMediaInput)
     resolvedProvider = input.perception?.tracks.length ? "perception" : "stub";
   }
 
+  const draft = input.perception?.hazardDraft;
   const { value: event, persisted } = await createEvent({
-    rideId: input.rideId,
-    t: input.t ?? input.perception?.hazardDraft.t,
-    timestamp: input.perception?.hazardDraft.timestamp ?? new Date().toISOString(),
-    lat: input.lat,
-    lng: input.lng,
-    headingDeg: input.headingDeg,
-    speedMps: input.speedMps,
-    camera: input.camera ?? "front",
+    ...analysis,
+    rideId: input.rideId ?? draft?.rideId,
+    t: input.t ?? draft?.t,
+    timestamp: draft?.timestamp ?? input.perception?.capturedAt ?? new Date().toISOString(),
+    lat: input.lat ?? draft?.lat,
+    lng: input.lng ?? draft?.lng,
+    headingDeg: input.headingDeg ?? draft?.headingDeg,
+    speedMps: input.speedMps ?? draft?.speedMps,
+    camera: input.camera ?? draft?.camera ?? "front",
     clipUrl: input.clipUrl,
     thumbnailUrl: input.thumbnailUrl,
-    ...analysis,
   });
 
   return { event, persisted, provider: resolvedProvider, perception: input.perception };

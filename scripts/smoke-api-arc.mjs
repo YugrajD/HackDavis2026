@@ -98,17 +98,11 @@ async function main() {
   const analyzed = await step("analyze and save media", async () => {
     const point = replay.ride.route[Math.min(3, replay.ride.route.length - 1)];
     const capturedAt = new Date().toISOString();
+    const draftRideId = `smoke-draft-ride-${Date.now()}`;
     const body = await requestJson("/api/media/analyze-and-save", {
       method: "POST",
       expectedStatus: 201,
       body: {
-        rideId: DEMO_RIDE_ID,
-        t: point.t,
-        lat: point.lat,
-        lng: point.lng,
-        speedMps: point.speedMps,
-        headingDeg: point.headingDeg,
-        camera: "rear",
         thumbnailUrl: "/generated/uploads/smoke-thumbnail.jpg",
         perception: {
           frameId: "smoke-frame-1",
@@ -140,7 +134,7 @@ async function main() {
             reasons: ["Rear object closing distance", "Low time-to-collision"],
           },
           hazardDraft: {
-            rideId: DEMO_RIDE_ID,
+            rideId: draftRideId,
             t: point.t,
             timestamp: capturedAt,
             type: "vehicle_approach",
@@ -168,7 +162,12 @@ async function main() {
         },
       },
     });
-    assert(body.event?.rideId === DEMO_RIDE_ID, "analyze-save returns event for demo ride");
+    assert(body.event?.rideId === draftRideId, "analyze-save preserves perception draft ride id");
+    assert(body.event?.t === point.t, "analyze-save preserves perception draft time");
+    assert(body.event?.timestamp === capturedAt, "analyze-save preserves perception draft timestamp");
+    assert(body.event?.lat === point.lat && body.event?.lng === point.lng, "analyze-save preserves perception draft location");
+    assert(body.event?.headingDeg === point.headingDeg && body.event?.speedMps === point.speedMps, "analyze-save preserves perception draft motion");
+    assert(body.event?.camera === "rear", "analyze-save preserves perception draft camera");
     assert(["gemini", "perception", "stub"].includes(body.provider), "analyze-save reports provider");
     assert(body.event.thumbnailUrl === "/generated/uploads/smoke-thumbnail.jpg", "analyze-save preserves evidence URL");
     return body;

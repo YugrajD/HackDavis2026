@@ -105,7 +105,8 @@ export type PerceptionRisk = {
 export type HazardEventDraft = Pick<
   HazardEvent,
   "type" | "severity" | "confidence" | "spokenAlert" | "explanation" | "objects" | "camera" | "lat" | "lng" | "headingDeg" | "speedMps" | "timestamp" | "t"
->;
+> &
+  Partial<Pick<HazardEvent, "rideId">>;
 
 export type PerceptionResult = {
   frameId: string;

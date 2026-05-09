@@ -15,8 +15,9 @@ export function sanitizePerceptionResult(input: unknown): PerceptionResult | und
   const camera: CameraRole = typeof draftInput.camera === "string" && cameraRoles.has(draftInput.camera as CameraRole) ? (draftInput.camera as CameraRole) : "front";
 
   const hazardDraft: HazardEventDraft = {
+    rideId: safeIdentifier(draftInput.rideId),
     t: isFiniteNumber(draftInput.t) && draftInput.t >= 0 ? draftInput.t : Math.round(Date.parse(capturedAt) / 1000),
-    timestamp: validIsoTime(draftInput.timestamp) ?? capturedAt,
+    timestamp: validIsoTime(draftInput.timestamp) ?? validIsoTime(draftInput.capturedAt) ?? capturedAt,
     camera,
     lat: isLatitude(draftInput.lat) ? draftInput.lat : 38.5449,
     lng: isLongitude(draftInput.lng) ? draftInput.lng : -121.7405,
