@@ -20,6 +20,7 @@ Use `http://localhost:3000` as the local base URL.
 | Voice alerts | `POST /api/voice/alert` | Wired; ElevenLabs when keyed, `audioUrl: null` fallback otherwise | Capture/rider mode |
 | Scenario Lab | `GET /api/scenarios`, `POST /api/scenarios` | Wired; deterministic prompt-to-road-danger output | Demo/judges |
 | DB status | `GET /api/db/status` | Wired; reports Atlas configuration and connection | Demo sanity check |
+| Provider status | `GET /api/providers/status` | Wired; reports sanitized configured/available status for Atlas, Gemini, Claude, ElevenLabs, uploads, and local fallback | Demo sanity check |
 
 The demo ride ID is `demo-ride-1`. Replay friends should load `/api/replay/demo-ride-1`. Records friends should load `/api/events?rideId=demo-ride-1`, `/api/danger-segments`, and `/api/ai/report`.
 
@@ -58,6 +59,7 @@ Terminal B:
 ```bash
 curl -X POST http://localhost:3000/api/seed/demo
 curl http://localhost:3000/api/db/status
+curl http://localhost:3000/api/providers/status
 curl http://localhost:3000/api/replay/demo-ride-1
 curl 'http://localhost:3000/api/events?rideId=demo-ride-1'
 curl -X POST http://localhost:3000/api/rides/demo-ride-1/route \

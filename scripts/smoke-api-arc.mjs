@@ -45,6 +45,20 @@ async function main() {
     return body;
   });
 
+  await step("read provider status", async () => {
+    const body = await requestJson("/api/providers/status");
+    assert(["ready", "degraded"].includes(body.status), "provider status reports status");
+    assert(typeof body.providers?.mongodb?.configured === "boolean", "provider status reports MongoDB configuration state");
+    assert(typeof body.providers?.mongodb?.available === "boolean", "provider status reports MongoDB availability");
+    assert(typeof body.providers?.gemini?.configured === "boolean", "provider status reports Gemini configuration state");
+    assert(typeof body.providers?.claude?.available === "boolean", "provider status reports Claude availability");
+    assert(typeof body.providers?.elevenLabs?.configured === "boolean", "provider status reports ElevenLabs configuration state");
+    assert(body.providers?.uploadStorage?.available === body.providers?.uploadStorage?.writable, "provider status maps upload writability to availability");
+    assert(body.providers?.localFallback?.available === true, "provider status reports local fallback availability");
+    if (ownsServer) assert(body.status === "ready" && body.providers.uploadStorage.writable, "owned smoke server provider status is ready");
+    return body;
+  });
+
   const replay = await step("load replay payload", async () => {
     const body = await requestJson(`/api/replay/${DEMO_RIDE_ID}`);
     assert(body.ride?.id === DEMO_RIDE_ID, "replay has demo ride");

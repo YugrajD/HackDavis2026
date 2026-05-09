@@ -46,6 +46,7 @@ No vendor key is required for the local demo. Real `MONGODB_URI`, `GEMINI_API_KE
 - Backend readiness pass added JSON error envelopes, bounded JSON bodies, stricter media MIME/signature checks, route parameter safeguards, and deployment notes in `docs/BACKEND_DEPLOYMENT.md`.
 - Scenario/report wiring pass added deterministic `/api/scenarios` GET/POST payloads, replay-ready scenario output, shared report/export contracts, and `/api/reports/export` `pdf-text` output.
 - Report/export now preserve documented seeded segment IDs after danger-segment recomputation. Known demo clusters get stable IDs during recompute, and `segmentId` lookup falls back by seeded label, top hazard types, and location.
+- Added `GET /api/providers/status` for sanitized configured/available status across MongoDB, Gemini, Claude, ElevenLabs, upload storage, and local fallback paths.
 
 ## Current integration assumptions
 
