@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { AnalyzeAndSaveMediaResponse, CameraRole, FrameDetection, FrameObservation, HazardEvent, MediaUploadResponse, PerceptionResult, TrackedObject } from "@/lib/contracts";
+import type { AnalyzeAndSaveMediaResponse, AppendRideRouteResponse, CameraRole, FrameDetection, FrameObservation, HazardEvent, MediaUploadResponse, PerceptionResult, Ride, RideMode, RoutePoint, TrackedObject } from "@/lib/contracts";
 import { analyzeFrameObservation } from "@/lib/perception/frame-pipeline";
 import { analyzeFrameInWorker, createPerceptionWorker } from "@/lib/perception/worker-client";
 
@@ -16,6 +16,11 @@ type VoiceResponse = {
   provider: string;
 };
 
+type RideResponse = {
+  ride: Ride;
+  persisted?: "memory" | "mongodb";
+};
+
 type CaptureLocation = {
   lat: number;
   lng: number;
@@ -24,6 +29,7 @@ type CaptureLocation = {
 type CaptureStatus = "idle" | "camera-ready" | "capturing" | "saved" | "error";
 type PerceptionPreset = "rear_vehicle" | "close_pass" | "blocked_lane" | "cross_traffic" | "clear";
 
+const demoRideId = "demo-ride-1";
 const fallbackLocation: CaptureLocation = { lat: 38.5449, lng: -121.7405 };
 
 export default function CapturePage() {
@@ -35,7 +41,11 @@ export default function CapturePage() {
   const startedAtRef = useRef<number>(Date.now());
 
   const [camera, setCamera] = useState<CameraRole>("front");
-  const [rideId, setRideId] = useState("demo-ride-1");
+  const [rideMode, setRideMode] = useState<RideMode>("bike");
+  const [rideId, setRideId] = useState(demoRideId);
+  const [activeRideId, setActiveRideId] = useState<string | null>(null);
+  const [rideBusy, setRideBusy] = useState(false);
+  const [routePointCount, setRoutePointCount] = useState(0);
   const [speedMps, setSpeedMps] = useState(4.6);
   const [headingDeg, setHeadingDeg] = useState(90);
   const [perceptionPreset, setPerceptionPreset] = useState<PerceptionPreset>("rear_vehicle");
@@ -111,11 +121,61 @@ export default function CapturePage() {
     }
   }
 
+  async function startRide() {
+    if (activeRideId) return;
+
+    setRideBusy(true);
+    setMessage("Starting live ride.");
+
+    try {
+      const response = await postJson<RideResponse>("/api/rides", { mode: rideMode, startLat: location.lat, startLng: location.lng });
+      startedAtRef.current = Date.now();
+      previousFrameRef.current = undefined;
+      setActiveRideId(response.ride.id);
+      setRideId(response.ride.id);
+      setRoutePointCount(0);
+      setStatus("camera-ready");
+      setMessage(`Started ${response.ride.mode} ride ${response.ride.id}. Captures now write to this ride.`);
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "Start ride failed.");
+    } finally {
+      setRideBusy(false);
+    }
+  }
+
+  async function endRide() {
+    if (!activeRideId) return;
+
+    const endedRideId = activeRideId;
+    setRideBusy(true);
+    setMessage(`Ending ride ${endedRideId}.`);
+
+    try {
+      const response = await requestJson<RideResponse>(`/api/rides/${endedRideId}/end`, "PATCH");
+      setActiveRideId(null);
+      setRideId(demoRideId);
+      startedAtRef.current = Date.now();
+      setRoutePointCount(0);
+      setStatus("camera-ready");
+      setMessage(`Ended ride ${response.ride.id}. Capture falls back to ${demoRideId}.`);
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "End ride failed.");
+    } finally {
+      setRideBusy(false);
+    }
+  }
+
   async function captureAndIngest() {
     if (!videoRef.current || !canvasRef.current) return;
 
+    const captureRideId = resolveRideId(activeRideId, rideId);
+    const captureT = Math.round((Date.now() - startedAtRef.current) / 1000);
+    const routePoint = buildRoutePoint({ t: captureT, location, speedMps, headingDeg });
+
     setStatus("capturing");
-    setMessage("Analyzing frame, uploading evidence, and saving event.");
+    setMessage(`Analyzing frame, saving event, and appending route point to ${captureRideId}.`);
 
     try {
       const imageBase64 = captureFrame(videoRef.current, canvasRef.current);
@@ -130,8 +190,8 @@ export default function CapturePage() {
 
       const saved = await postJson<AnalyzeAndSaveMediaResponse>("/api/media/analyze-and-save", {
         imageBase64,
-        rideId: rideId.trim() || "demo-ride-1",
-        t: Math.round((Date.now() - startedAtRef.current) / 1000),
+        rideId: captureRideId,
+        t: captureT,
         lat: location.lat,
         lng: location.lng,
         speedMps,
@@ -141,12 +201,14 @@ export default function CapturePage() {
         thumbnailUrl: mediaUpload.thumbnailUrl,
         perception,
       });
+      await postJson<AppendRideRouteResponse>(`/api/rides/${captureRideId}/route`, { point: routePoint });
+      setRoutePointCount((count) => count + 1);
 
       const frameAnalysis: AnalysisResponse = { ...saved.event, provider: saved.provider, perception: saved.perception };
       setAnalysis(frameAnalysis);
       setLastEvent(saved.event);
       setStatus("saved");
-      setMessage(`Saved ${saved.event.type.replaceAll("_", " ")} at severity ${Math.round(saved.event.severity)} via ${saved.provider}.`);
+      setMessage(`Saved ${saved.event.type.replaceAll("_", " ")} at severity ${Math.round(saved.event.severity)} on ${captureRideId}.`);
 
       const voice = await postJson<VoiceResponse>("/api/voice/alert", { text: saved.event.spokenAlert });
       playVoiceAlert(voice);
@@ -181,7 +243,7 @@ export default function CapturePage() {
               </button>
               <button
                 className="rounded-full bg-cyanline px-5 py-2 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={status === "capturing"}
+                disabled={status === "capturing" || rideBusy}
                 onClick={captureAndIngest}
                 type="button"
               >
@@ -195,9 +257,39 @@ export default function CapturePage() {
           <div className="rounded-3xl border border-white/10 bg-panel/80 p-5">
             <h2 className="font-mono text-xs uppercase tracking-[0.22em] text-slate-400">sensor context</h2>
             <div className="mt-4 grid gap-3">
+              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-mono text-xs uppercase tracking-[0.18em] text-slate-500">active ride</p>
+                    <p className="mt-1 font-mono text-xs text-cyanline">{resolveRideId(activeRideId, rideId)}</p>
+                  </div>
+                  <p className="font-mono text-xs text-slate-500">route points +{routePointCount}</p>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">Uses {demoRideId} until a live ride starts.</p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button className="rounded-full bg-cyanline px-3 py-2 text-xs font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50" disabled={!!activeRideId || rideBusy || status === "capturing"} onClick={startRide} type="button">
+                    Start ride
+                  </button>
+                  <button className="rounded-full border border-white/15 px-3 py-2 text-xs font-semibold text-slate-200 disabled:cursor-not-allowed disabled:opacity-50" disabled={!activeRideId || rideBusy || status === "capturing"} onClick={endRide} type="button">
+                    End ride
+                  </button>
+                </div>
+              </div>
               <label className="grid gap-1 text-sm text-slate-300">
-                Ride ID
+                Ride ID fallback
                 <input className="rounded-2xl border border-white/10 bg-slate-950 px-3 py-2 text-white outline-none focus:border-cyanline" value={rideId} onChange={(event) => setRideId(event.target.value)} />
+              </label>
+              <label className="grid gap-1 text-sm text-slate-300">
+                Ride mode
+                <select
+                  className="rounded-2xl border border-white/10 bg-slate-950 px-3 py-2 text-white outline-none focus:border-cyanline"
+                  value={rideMode}
+                  onChange={(event) => setRideMode(event.target.value as RideMode)}
+                >
+                  <option value="bike">bike</option>
+                  <option value="scooter">scooter</option>
+                  <option value="car">car</option>
+                </select>
               </label>
               <label className="grid gap-1 text-sm text-slate-300">
                 Camera
@@ -260,6 +352,26 @@ export default function CapturePage() {
       </section>
     </main>
   );
+}
+
+function resolveRideId(activeRideId: string | null, fallbackRideId: string) {
+  return activeRideId ?? (fallbackRideId.trim() || demoRideId);
+}
+
+function buildRoutePoint(context: { t: number; location: CaptureLocation; speedMps: number; headingDeg: number }): RoutePoint {
+  const headingDeg = finiteNumber(context.headingDeg, 0);
+
+  return {
+    t: Math.max(0, finiteNumber(context.t, 0)),
+    lat: context.location.lat,
+    lng: context.location.lng,
+    speedMps: Math.max(0, finiteNumber(context.speedMps, 0)),
+    headingDeg: ((headingDeg % 360) + 360) % 360,
+  };
+}
+
+function finiteNumber(value: number, fallback: number) {
+  return Number.isFinite(value) ? value : fallback;
 }
 
 function buildFrameObservation(
@@ -335,13 +447,17 @@ function captureFrame(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
+  return requestJson(url, "POST", body);
+}
+
+async function requestJson<T>(url: string, method: "POST" | "PATCH", body?: unknown): Promise<T> {
   const response = await fetch(url, {
-    method: "POST",
+    method,
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
 
-  const payload = (await response.json()) as T & { error?: string };
+  const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
   if (!response.ok) throw new Error(payload.error ?? `${url} returned ${response.status}`);
   return payload;
 }
