@@ -60,8 +60,9 @@ type PreviewSize = { w: number; h: number };
 const DEMO_RIDE_ID = "demo-ride-1";
 const DEMO_ORIGIN = { lat: 38.5449, lng: -121.7405 };
 const CAPTURE_IMAGE_QUALITY = 0.55;
-const LIVE_MONITOR_JPEG_QUALITY = 0.42;
-const LIVE_MONITOR_INTERVAL_MS = 1300;
+const LIVE_MONITOR_JPEG_QUALITY = 0.38;
+/** When the camera or network fails, wait briefly before retrying (live loop otherwise runs back-to-back). */
+const LIVE_MONITOR_ERROR_BACKOFF_MS = 120;
 const AUTO_PERSIST_MIN_SCORE = 56;
 const AUTO_PERSIST_COOLDOWN_MS = 42_000;
 const SPEECH_HINT_MIN_SCORE = 62;
@@ -188,8 +189,7 @@ export default function CaptureScreen() {
   const [liveDetectNote, setLiveDetectNote] = useState<string | undefined>();
   const [liveHudScore, setLiveHudScore] = useState(0);
   const [monitorTickBusy, setMonitorTickBusy] = useState(false);
-
-  const detectInFlightRef = useRef(false);
+  const [liveRoundTripMs, setLiveRoundTripMs] = useState<number | null>(null);
   const persistInFlightRef = useRef(false);
   const lastAutoPersistMsRef = useRef(0);
   const lastSpeechHintMsRef = useRef(0);
@@ -375,71 +375,87 @@ export default function CaptureScreen() {
     if (width > 0 && height > 0) setPreviewSize({ w: width, h: height });
   }, []);
 
-  const runMonitorTick = useCallback(async () => {
-    const cam = cameraViewRef.current;
-    if (!cam || !monitorOn) return;
-    if (detectInFlightRef.current) return;
-    detectInFlightRef.current = true;
-    setMonitorTickBusy(true);
-    try {
-      const photo = await cam.takePictureAsync({
-        base64: true,
-        quality: LIVE_MONITOR_JPEG_QUALITY,
-        shutterSound: false,
-        skipProcessing: false,
-      });
-      if (!photo?.base64) return;
-      const imageBase64 = `data:image/jpeg;base64,${photo.base64}`;
-
-      const det = await postPerceptionDetect(imageBase64);
-      setLiveDetections(det.detections);
-      setLiveDetectNote(det.httpOk ? undefined : det.note);
-      const score = scoreDetectionsForHud(det.detections);
-      setLiveHudScore(score);
-
-      const now = Date.now();
-      if (score >= SPEECH_HINT_MIN_SCORE && now - lastSpeechHintMsRef.current >= SPEECH_HINT_COOLDOWN_MS) {
-        lastSpeechHintMsRef.current = now;
-        Speech.speak(spokenHintForTopDetection(det.detections), { rate: 1.05 });
-      }
-
-      if (
-        score >= AUTO_PERSIST_MIN_SCORE &&
-        now - lastAutoPersistMsRef.current >= AUTO_PERSIST_COOLDOWN_MS &&
-        !persistInFlightRef.current &&
-        !busyRef.current
-      ) {
-        persistInFlightRef.current = true;
-        lastAutoPersistMsRef.current = now;
-        try {
-          setStatus("Monitor: high risk — saving event…");
-          await persistPipelineFromImage(imageBase64, { statusPrefix: "Monitor: " });
-        } catch (err) {
-          setStatus(err instanceof Error ? err.message : "Monitor auto-save failed");
-        } finally {
-          persistInFlightRef.current = false;
-        }
-      }
-    } catch {
-      setLiveDetectNote("Live frame failed (camera or network).");
-    } finally {
-      detectInFlightRef.current = false;
-      setMonitorTickBusy(false);
-    }
-  }, [monitorOn, persistPipelineFromImage]);
-
   useEffect(() => {
     if (!monitorOn) {
       setLiveDetections([]);
       setLiveHudScore(0);
       setLiveDetectNote(undefined);
       setMonitorTickBusy(false);
+      setLiveRoundTripMs(null);
       return;
     }
-    void runMonitorTick();
-    const id = setInterval(() => void runMonitorTick(), LIVE_MONITOR_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [monitorOn, runMonitorTick]);
+
+    let cancelled = false;
+
+    const liveLoop = async () => {
+      while (!cancelled) {
+        const cam = cameraViewRef.current;
+        if (!cam) {
+          await new Promise((r) => setTimeout(r, LIVE_MONITOR_ERROR_BACKOFF_MS));
+          continue;
+        }
+
+        const t0 = Date.now();
+        setMonitorTickBusy(true);
+        try {
+          const photo = await cam.takePictureAsync({
+            base64: true,
+            quality: LIVE_MONITOR_JPEG_QUALITY,
+            shutterSound: false,
+            skipProcessing: false,
+          });
+          if (!photo?.base64) {
+            setLiveRoundTripMs(null);
+            await new Promise((r) => setTimeout(r, LIVE_MONITOR_ERROR_BACKOFF_MS));
+            continue;
+          }
+
+          const imageBase64 = `data:image/jpeg;base64,${photo.base64}`;
+          const det = await postPerceptionDetect(imageBase64);
+          setLiveDetections(det.detections);
+          setLiveDetectNote(det.httpOk ? undefined : det.note);
+          const score = scoreDetectionsForHud(det.detections);
+          setLiveHudScore(score);
+          setLiveRoundTripMs(Date.now() - t0);
+
+          const now = Date.now();
+          if (score >= SPEECH_HINT_MIN_SCORE && now - lastSpeechHintMsRef.current >= SPEECH_HINT_COOLDOWN_MS) {
+            lastSpeechHintMsRef.current = now;
+            Speech.speak(spokenHintForTopDetection(det.detections), { rate: 1.05 });
+          }
+
+          if (
+            score >= AUTO_PERSIST_MIN_SCORE &&
+            now - lastAutoPersistMsRef.current >= AUTO_PERSIST_COOLDOWN_MS &&
+            !persistInFlightRef.current &&
+            !busyRef.current
+          ) {
+            persistInFlightRef.current = true;
+            lastAutoPersistMsRef.current = now;
+            try {
+              setStatus("Monitor: high risk — saving event…");
+              await persistPipelineFromImage(imageBase64, { statusPrefix: "Monitor: " });
+            } catch (err) {
+              setStatus(err instanceof Error ? err.message : "Monitor auto-save failed");
+            } finally {
+              persistInFlightRef.current = false;
+            }
+          }
+        } catch {
+          setLiveDetectNote("Live frame failed (camera or network).");
+          setLiveRoundTripMs(null);
+          await new Promise((r) => setTimeout(r, LIVE_MONITOR_ERROR_BACKOFF_MS));
+        } finally {
+          setMonitorTickBusy(false);
+        }
+      }
+    };
+
+    void liveLoop();
+    return () => {
+      cancelled = true;
+    };
+  }, [monitorOn, persistPipelineFromImage]);
 
   if (!permission) {
     return (
@@ -513,7 +529,7 @@ export default function CaptureScreen() {
       <View style={styles.monitorPanel}>
         <Text style={styles.preflightTitle}>Live monitor</Text>
         <Text style={styles.monitorCaption}>
-          Video preview + POST /api/perception/detect every {LIVE_MONITOR_INTERVAL_MS / 1000}s. Boxes are live only. Full save uses analyze-and-save (manual or debounced auto).
+          Continuous loop: each frame captures JPEG, POST /api/perception/detect, then draws green boxes for every class YOLO returns (no fixed 1.3s wait). Round-trip time depends on Wi‑Fi and laptop GPU. Full save still uses analyze-and-save (manual or debounced auto).
         </Text>
         <View style={styles.monitorRow}>
           <Pressable
@@ -526,7 +542,10 @@ export default function CaptureScreen() {
           <View style={styles.monitorStats}>
             <Text style={styles.monitorStatLine}>HUD score {liveHudScore}</Text>
             <Text style={styles.monitorStatLine}>{liveDetections.length} detection(s)</Text>
-            {monitorTickBusy ? <Text style={styles.monitorStatDim}>scanning…</Text> : null}
+            <Text style={styles.monitorStatLine}>
+              {liveRoundTripMs != null ? `last frame ${liveRoundTripMs} ms` : "last frame —"}
+            </Text>
+            {monitorTickBusy ? <Text style={styles.monitorStatDim}>live loop…</Text> : null}
           </View>
         </View>
         {liveDetectNote ? <Text style={styles.preflightError}>{liveDetectNote}</Text> : null}
@@ -543,17 +562,12 @@ export default function CaptureScreen() {
               const top = y1 * previewSize.h;
               const w = Math.max(0, (x2 - x1) * previewSize.w);
               const h = Math.max(0, (y2 - y1) * previewSize.h);
-              const vehicle = /car|truck|bus|bike|scooter/i.test(d.label);
               return (
-                <View
-                  key={d.id ?? `det-${i}`}
-                  pointerEvents="none"
-                  style={[
-                    styles.detectionBox,
-                    { left, top, width: w, height: h },
-                    vehicle ? styles.detectionVehicle : styles.detectionOther,
-                  ]}
-                />
+                <View key={d.id ?? `det-${i}`} pointerEvents="none" style={[styles.detectionBox, styles.detectionRecognized, { left, top, width: w, height: h }]}>
+                  <Text style={styles.detectionLabel} numberOfLines={1}>
+                    {d.label}
+                  </Text>
+                </View>
               );
             })
           : null}
@@ -667,10 +681,26 @@ const styles = StyleSheet.create({
     position: "absolute",
     borderWidth: 2,
     borderRadius: 4,
-    backgroundColor: "transparent",
+    justifyContent: "flex-start",
+    overflow: "hidden",
   },
-  detectionVehicle: { borderColor: "rgba(251,191,36,0.95)" },
-  detectionOther: { borderColor: "rgba(34,211,238,0.9)" },
+  /** All YOLO recognitions use the same positive “locked-in” cue. */
+  detectionRecognized: {
+    borderColor: "rgba(74, 222, 128, 0.98)",
+    backgroundColor: "rgba(34, 197, 94, 0.14)",
+  },
+  detectionLabel: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    paddingVertical: 1,
+    paddingHorizontal: 4,
+    fontSize: 9,
+    fontFamily: "monospace",
+    color: "#052e16",
+    backgroundColor: "rgba(74, 222, 128, 0.92)",
+  },
   capture: {
     marginTop: 20,
     backgroundColor: "#22d3ee",

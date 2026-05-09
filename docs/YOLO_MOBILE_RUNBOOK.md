@@ -124,8 +124,8 @@ If YOLO is configured but not reachable, overall provider status becomes `"degra
 
 The mobile app can run **continuous video preview** with a **Start monitor** toggle. While monitor is on:
 
-- It snapshots JPEGs at **~0.42 quality** on an interval (default **1.3 s**) and calls **`POST /api/perception/detect`** only (no DB write per frame).
-- Bounding boxes draw on the preview from normalized `bbox` values when YOLO returns detections.
+- An **async loop** runs back-to-back: snapshot JPEG (**~0.38 quality**) → **`POST /api/perception/detect`** → update UI (no fixed seconds-between-frames delay; effective FPS is limited by camera encode, Wi‑Fi, and YOLO latency). The UI shows **last frame round-trip ms** as feedback.
+- Every returned detection is drawn with a **green** border and a small **label** chip (normalized `bbox` over the preview).
 - **Manual save** still uses **Save hazard (manual)** → upload + **`POST /api/media/analyze-and-save`** (same as before).
 - **Auto-save** runs only when a client **HUD score** from detections crosses a threshold **and** at least **~42 s** have passed since the last auto-save, so the laptop and Mongo/memory are not flooded.
 
