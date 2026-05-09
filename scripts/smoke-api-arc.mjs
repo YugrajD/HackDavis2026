@@ -6,6 +6,8 @@ const DEFAULT_PORT = Number(process.env.SMOKE_PORT || 3210);
 const START_TIMEOUT_MS = Number(process.env.SMOKE_START_TIMEOUT_MS || 45_000);
 const REQUEST_TIMEOUT_MS = Number(process.env.SMOKE_REQUEST_TIMEOUT_MS || 15_000);
 const DEMO_RIDE_ID = "demo-ride-1";
+const TINY_PNG_DATA_URI =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 
 let child = null;
 const ownsServer = !process.env.API_BASE_URL;
@@ -98,6 +100,22 @@ async function main() {
     return { listed, created, nearby };
   });
 
+  const uploadedMedia = await step("upload media evidence", async () => {
+    const body = await requestJson("/api/media/upload", {
+      method: "POST",
+      expectedStatus: 201,
+      body: { imageBase64: TINY_PNG_DATA_URI },
+    });
+    const thumbnail = body.stored?.find((item) => item.kind === "thumbnail");
+    assert(body.persisted === "public/generated", "media upload reports local public persistence");
+    assert(typeof body.thumbnailUrl === "string" && body.thumbnailUrl.startsWith("/generated/uploads/thumbnail-"), "media upload returns thumbnail URL");
+    assert(body.thumbnailUrl.endsWith(".png"), "media upload preserves PNG extension");
+    assert(thumbnail?.url === body.thumbnailUrl, "media upload metadata includes thumbnail URL");
+    assert(thumbnail?.contentType === "image/png", "media upload metadata includes PNG content type");
+    assert(Number.isInteger(thumbnail?.bytes) && thumbnail.bytes > 0, "media upload metadata includes byte size");
+    return body;
+  });
+
   const analyzed = await step("analyze and save media", async () => {
     const point = replay.ride.route[Math.min(3, replay.ride.route.length - 1)];
     const capturedAt = new Date().toISOString();
@@ -106,7 +124,7 @@ async function main() {
       method: "POST",
       expectedStatus: 201,
       body: {
-        thumbnailUrl: "/generated/uploads/smoke-thumbnail.jpg",
+        thumbnailUrl: uploadedMedia.thumbnailUrl,
         perception: {
           frameId: "smoke-frame-1",
           capturedAt,
@@ -172,7 +190,7 @@ async function main() {
     assert(body.event?.headingDeg === point.headingDeg && body.event?.speedMps === point.speedMps, "analyze-save preserves perception draft motion");
     assert(body.event?.camera === "rear", "analyze-save preserves perception draft camera");
     assert(["gemini", "perception", "stub"].includes(body.provider), "analyze-save reports provider");
-    assert(body.event.thumbnailUrl === "/generated/uploads/smoke-thumbnail.jpg", "analyze-save preserves evidence URL");
+    assert(body.event.thumbnailUrl === uploadedMedia.thumbnailUrl, "analyze-save preserves uploaded evidence URL");
     return body;
   });
 
