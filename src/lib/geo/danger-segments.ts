@@ -2,8 +2,18 @@ import type { DangerSegment, HazardEvent, HazardType } from "@/lib/contracts";
 
 const CLUSTER_RADIUS_M = 180;
 const MAX_CLUSTER_SPAN_M = 260;
+const SEEDED_SEGMENT_MATCH_RADIUS_M = 180;
 
 type RiskFamily = "vehicle-clearance" | "intersection-conflict" | "surface-obstruction";
+
+type SeededSegmentTemplate = {
+  id: string;
+  label: string;
+  family: RiskFamily;
+  centerLat: number;
+  centerLng: number;
+  topTypes: HazardType[];
+};
 
 type EventCluster = {
   family: RiskFamily;
@@ -29,6 +39,33 @@ const hazardLabels: Record<HazardType, string> = {
   hard_brake: "hard brake",
   intersection_conflict: "intersection conflict",
 };
+
+const seededSegmentTemplates: SeededSegmentTemplate[] = [
+  {
+    id: "seg-russell-olive",
+    label: "Russell Blvd approach near Olive Dr",
+    family: "vehicle-clearance",
+    centerLat: 38.54501,
+    centerLng: -121.73875,
+    topTypes: ["close_pass", "blocked_bike_lane", "door_zone"],
+  },
+  {
+    id: "seg-anderson-crossing",
+    label: "Anderson Rd intersection crossing",
+    family: "intersection-conflict",
+    centerLat: 38.54455,
+    centerLng: -121.73591,
+    topTypes: ["intersection_conflict", "pedestrian_conflict"],
+  },
+  {
+    id: "seg-third-pavement",
+    label: "3rd St pavement break",
+    family: "surface-obstruction",
+    centerLat: 38.54491,
+    centerLng: -121.73678,
+    topTypes: ["pothole"],
+  },
+];
 
 export function computeDangerSegments(events: HazardEvent[]): DangerSegment[] {
   if (!events.length) return [];
@@ -101,17 +138,45 @@ function buildDangerSegment(cluster: EventCluster, referenceTime: number): Dange
   const repeatTypeBonus = topTypeCount >= 3 ? 100 : 40;
   const score = Math.round(avgSeverity * 0.45 + eventCountBonus * 0.25 + recentBonus * 0.15 + repeatTypeBonus * 0.15);
 
+  const centerLat = roundCoordinate(cluster.centerLat);
+  const centerLng = roundCoordinate(cluster.centerLng);
+  const seededTemplate = matchSeededTemplate(cluster.family, topTypes, centerLat, centerLng);
+
   return {
-    id: segmentId(cluster.family, cluster.centerLat, cluster.centerLng),
-    label: `${familyLabels[cluster.family]} cluster near ${cluster.centerLat.toFixed(5)}, ${cluster.centerLng.toFixed(5)}`,
-    centerLat: roundCoordinate(cluster.centerLat),
-    centerLng: roundCoordinate(cluster.centerLng),
+    id: seededTemplate?.id ?? segmentId(cluster.family, cluster.centerLat, cluster.centerLng),
+    label: seededTemplate?.label ?? `${familyLabels[cluster.family]} cluster near ${cluster.centerLat.toFixed(5)}, ${cluster.centerLng.toFixed(5)}`,
+    centerLat,
+    centerLng,
     score: clamp(score, 0, 100),
     eventCount: events.length,
     topTypes,
     lastSeen,
     explanation: segmentExplanation(cluster.family, topTypes, events.length, Math.round(avgSeverity)),
   };
+}
+
+export function resolveDangerSegment(segments: DangerSegment[], segmentId: string) {
+  const exact = segments.find((segment) => segment.id === segmentId);
+  if (exact) return exact;
+
+  const template = seededSegmentTemplates.find((item) => item.id === segmentId);
+  if (!template) return undefined;
+
+  const candidate = segments
+    .map((segment) => ({
+      segment,
+      distanceM: haversineMeters(segment.centerLat, segment.centerLng, template.centerLat, template.centerLng),
+      typeOverlap: countTypeOverlap(segment.topTypes, template.topTypes),
+      labelMatch: labelsMatch(segment.label, template.label),
+    }))
+    .filter(
+      ({ distanceM, typeOverlap, labelMatch }) =>
+        distanceM <= SEEDED_SEGMENT_MATCH_RADIUS_M && (typeOverlap > 0 || labelMatch),
+    )
+    .sort((a, b) => b.typeOverlap - a.typeOverlap || Number(b.labelMatch) - Number(a.labelMatch) || a.distanceM - b.distanceM)[0]
+    ?.segment;
+
+  return candidate ? { ...candidate, id: template.id, label: template.label } : undefined;
 }
 
 function countTypes(events: HazardEvent[]) {
@@ -124,6 +189,34 @@ function countTypes(events: HazardEvent[]) {
 
 function maxSeverity(events: HazardEvent[], type: HazardType) {
   return events.reduce((max, event) => (event.type === type ? Math.max(max, event.severity) : max), 0);
+}
+
+function matchSeededTemplate(family: RiskFamily, topTypes: HazardType[], centerLat: number, centerLng: number) {
+  return seededSegmentTemplates
+    .map((template) => ({
+      template,
+      distanceM: haversineMeters(centerLat, centerLng, template.centerLat, template.centerLng),
+      typeOverlap: countTypeOverlap(topTypes, template.topTypes),
+    }))
+    .filter(
+      ({ template, distanceM, typeOverlap }) =>
+        template.family === family && distanceM <= SEEDED_SEGMENT_MATCH_RADIUS_M && typeOverlap > 0,
+    )
+    .sort((a, b) => b.typeOverlap - a.typeOverlap || a.distanceM - b.distanceM)[0]?.template;
+}
+
+function countTypeOverlap(types: HazardType[], expectedTypes: HazardType[]) {
+  const expected = new Set(expectedTypes);
+  return types.reduce((count, type) => count + (expected.has(type) ? 1 : 0), 0);
+}
+
+function labelsMatch(label: string, expectedLabel: string) {
+  const labelTokens = tokenSet(label);
+  return [...tokenSet(expectedLabel)].some((token) => labelTokens.has(token));
+}
+
+function tokenSet(value: string) {
+  return new Set(value.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 5));
 }
 
 function segmentExplanation(family: RiskFamily, topTypes: HazardType[], eventCount: number, avgSeverity: number) {

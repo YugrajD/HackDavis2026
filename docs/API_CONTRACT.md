@@ -550,7 +550,7 @@ Batch response:
 
 ### `POST /api/ai/report`
 
-Inputs a danger segment and related events. Returns a civic safety report.
+Inputs a danger segment and related events. Returns a civic safety report. Seeded demo segment IDs, including `seg-russell-olive`, remain valid after danger-segment recomputation; the backend resolves documented IDs by exact ID first, then by seeded label/top-types/location match.
 
 Request:
 
@@ -577,7 +577,7 @@ Response:
 
 ### `POST /api/reports/export`
 
-ShipSense-inspired export helper. It generates a report for a danger segment and returns an export payload for civic handoff. Supported formats: `markdown`, `html`, `csv`, and `pdf-text` plain text formatted like a PDF report. Request may include `segment` and `events` directly for scenario or offline exports; otherwise `segmentId` selects seeded or persisted backend data.
+ShipSense-inspired export helper. It generates a report for a danger segment and returns an export payload for civic handoff. Supported formats: `markdown`, `html`, `csv`, and `pdf-text` plain text formatted like a PDF report. Request may include `segment` and `events` directly for scenario or offline exports; otherwise `segmentId` selects seeded or persisted backend data. Documented seeded IDs survive recomputation by exact ID or seeded label/top-types/location fallback.
 
 Request:
 

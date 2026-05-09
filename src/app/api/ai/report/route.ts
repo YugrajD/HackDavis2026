@@ -3,6 +3,7 @@ import type { DangerSegment, HazardEvent } from "@/lib/contracts";
 import { handleApiError, jsonError, readJsonBody } from "@/lib/api/responses";
 import { generateSafetyReport, generateSafetyReportWithClaude } from "@/lib/ai/report";
 import { listDangerSegments, listEvents } from "@/lib/db/repository";
+import { resolveDangerSegment } from "@/lib/geo/danger-segments";
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
     }>(request, { allowEmpty: true, maxBytes: 256 * 1024 });
 
     const segments = await listDangerSegments();
-    const requestedSegment = body.segmentId ? segments.find((item) => item.id === body.segmentId) : undefined;
+    const requestedSegment = body.segmentId ? resolveDangerSegment(segments, body.segmentId) : undefined;
 
     if (body.segmentId && !requestedSegment && !body.segment) {
       return jsonError(`Danger segment ${body.segmentId} was not found.`, 404);

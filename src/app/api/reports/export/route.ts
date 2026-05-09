@@ -3,6 +3,7 @@ import type { DangerSegment, HazardEvent, ReportExportFormat } from "@/lib/contr
 import { handleApiError, jsonError, readJsonBody } from "@/lib/api/responses";
 import { generateSafetyReport, generateSafetyReportWithClaude } from "@/lib/ai/report";
 import { listDangerSegments, listEvents } from "@/lib/db/repository";
+import { resolveDangerSegment } from "@/lib/geo/danger-segments";
 import { buildReportExportPayload, type ExportFormat } from "@/lib/reports/export";
 
 const formats: ExportFormat[] = ["markdown", "html", "csv", "pdf-text"];
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
     const body = await readJsonBody<ReportExportRequest>(request, { allowEmpty: true, maxBytes: 256 * 1024 });
     const format = formats.includes(body.format as ExportFormat) ? (body.format as ExportFormat) : "markdown";
     const segments = await listDangerSegments();
-    const requestedSegment = body.segmentId ? segments.find((item) => item.id === body.segmentId) : undefined;
+    const requestedSegment = body.segmentId ? resolveDangerSegment(segments, body.segmentId) : undefined;
 
     if (body.segmentId && !requestedSegment && !body.segment) {
       return jsonError(`Danger segment ${body.segmentId} was not found.`, 404);
