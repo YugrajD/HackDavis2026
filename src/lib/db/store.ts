@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { CameraRole, DangerSegment, HazardEvent, HazardType, ReplayPayload, Ride, RideMode } from "@/lib/contracts";
+import { sortEventsForTimeline, sortEventsNewestFirst } from "@/lib/db/event-ordering";
 import { computeDangerSegments, haversineMeters } from "@/lib/geo/danger-segments";
 import { demoDangerSegments, demoEvents, demoRide } from "@/lib/seed/demo-data";
 
@@ -114,14 +115,16 @@ export function listEvents(filters: EventFilters = {}) {
   const minSeverity = filters.minSeverity ?? 0;
   const modeRideIds = filters.mode ? new Set(state().rides.filter((ride) => ride.mode === filters.mode).map((ride) => ride.id)) : null;
 
-  return state().events.filter((event) => {
-    if (filters.rideId && event.rideId !== filters.rideId) return false;
-    if (filters.type && event.type !== filters.type) return false;
-    if (filters.camera && event.camera !== filters.camera) return false;
-    if (modeRideIds && !modeRideIds.has(event.rideId)) return false;
-    if (event.severity < minSeverity) return false;
-    return true;
-  });
+  return sortEventsNewestFirst(
+    state().events.filter((event) => {
+      if (filters.rideId && event.rideId !== filters.rideId) return false;
+      if (filters.type && event.type !== filters.type) return false;
+      if (filters.camera && event.camera !== filters.camera) return false;
+      if (modeRideIds && !modeRideIds.has(event.rideId)) return false;
+      if (event.severity < minSeverity) return false;
+      return true;
+    }),
+  );
 }
 
 export function buildEvent(input: Partial<HazardEvent>) {
@@ -161,7 +164,7 @@ export function createEvents(inputs: Partial<HazardEvent>[]) {
 }
 
 export function listNearbyEvents(lat: number, lng: number, radiusM: number) {
-  return state().events.filter((event) => haversineMeters(lat, lng, event.lat, event.lng) <= radiusM);
+  return sortEventsNewestFirst(state().events.filter((event) => haversineMeters(lat, lng, event.lat, event.lng) <= radiusM));
 }
 
 export function listDangerSegments(bbox?: { westLng: number; southLat: number; eastLng: number; northLat: number }) {
@@ -181,7 +184,7 @@ export function getReplayPayload(rideId: string): ReplayPayload | null {
 
   return {
     ride,
-    events: listEvents({ rideId }),
+    events: sortEventsForTimeline(listEvents({ rideId })),
     dangerSegments: listDangerSegments(),
     generatedAt: new Date().toISOString(),
   };

@@ -435,7 +435,7 @@ Response:
 
 ### `GET /api/events?rideId=...`
 
-Returns events. Optional filters may be added: `type`, `minSeverity`, `mode`, `camera`.
+Returns events sorted newest-first by `timestamp`, then `t`, then `id`. Optional filters may be added: `type`, `minSeverity`, `mode`, `camera`.
 
 Response:
 
@@ -445,7 +445,7 @@ Response:
 
 ### `GET /api/events/near?lat=...&lng=...&radiusM=...`
 
-Returns nearby events. Mongo geospatial queries can replace the in-memory Haversine implementation without changing the envelope.
+Returns nearby events sorted newest-first by `timestamp`, then `t`, then `id`. Mongo geospatial queries can replace the in-memory Haversine implementation without changing the envelope.
 
 Response:
 
@@ -455,7 +455,7 @@ Response:
 
 ### `GET /api/replay/:rideId`
 
-The main replay contract. Replay owner should only need this endpoint.
+The main replay contract. Replay owner should only need this endpoint. Replay `events` are sorted by timeline `t` ascending, then `timestamp`, then `id`.
 
 Response:
 

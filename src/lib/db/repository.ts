@@ -1,5 +1,6 @@
 import type { Db } from "mongodb";
 import type { CameraRole, DangerSegment, HazardEvent, HazardType, ReplayPayload, Ride, RideMode } from "@/lib/contracts";
+import { sortEventsForTimeline, sortEventsNewestFirst } from "@/lib/db/event-ordering";
 import { getMongoDb, isMongoConfigured, point } from "@/lib/db/mongo";
 import { computeDangerSegments } from "@/lib/geo/danger-segments";
 import { demoDangerSegments, demoEvents, demoRide } from "@/lib/seed/demo-data";
@@ -97,8 +98,8 @@ export async function listEvents(filters: EventFilters = {}) {
     if (!filters.rideId) query.rideId = { $in: rideIds };
   }
 
-  const docs = await db.collection<EventDocument>("events").find(query, { projection: { _id: 0, location: 0 } }).toArray();
-  return docs.map(stripLocation);
+  const docs = await db.collection<EventDocument>("events").find(query, { projection: { _id: 0, location: 0 } }).sort({ timestamp: -1, t: -1, id: 1 }).toArray();
+  return sortEventsNewestFirst(docs.map(stripLocation));
 }
 
 export async function createEvent(input: Partial<HazardEvent>): Promise<Persisted<HazardEvent>> {
@@ -143,7 +144,7 @@ export async function listNearbyEvents(lat: number, lng: number, radiusM: number
     )
     .toArray();
 
-  return docs.map(stripLocation);
+  return sortEventsNewestFirst(docs.map(stripLocation));
 }
 
 export async function listDangerSegments(bbox?: { westLng: number; southLat: number; eastLng: number; northLat: number }) {
@@ -170,7 +171,7 @@ export async function getReplayPayload(rideId: string): Promise<ReplayPayload | 
 
   return {
     ride,
-    events: await listEvents({ rideId }),
+    events: sortEventsForTimeline(await listEvents({ rideId })),
     dangerSegments: await listDangerSegments(),
     generatedAt: new Date().toISOString(),
   };

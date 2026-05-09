@@ -48,6 +48,7 @@ async function main() {
     assert(body.ride?.id === DEMO_RIDE_ID, "replay has demo ride");
     assert(Array.isArray(body.ride.route) && body.ride.route.length >= 2, "replay has route points");
     assert(Array.isArray(body.events) && body.events.length >= seed.eventCount, "replay includes seeded events");
+    assertEventsSortedByTimeline(body.events, "replay events are timeline ordered");
     assert(Array.isArray(body.dangerSegments) && body.dangerSegments.length >= 1, "replay includes danger segments");
     return body;
   });
@@ -55,6 +56,7 @@ async function main() {
   const events = await step("list and create events", async () => {
     const listed = await requestJson(`/api/events?rideId=${DEMO_RIDE_ID}&minSeverity=50`);
     assert(Array.isArray(listed.events) && listed.events.length > 0, "events list is non-empty");
+    assertEventsSortedNewestFirst(listed.events, "events list is newest-first");
 
     const point = replay.ride.route[Math.min(2, replay.ride.route.length - 1)];
     const created = await requestJson("/api/events", {
@@ -92,6 +94,7 @@ async function main() {
 
     const nearby = await requestJson(`/api/events/near?lat=${point.lat}&lng=${point.lng}&radiusM=500`);
     assert(Array.isArray(nearby.events) && nearby.events.some((event) => event.id === created.event.id), "nearby events include created event");
+    assertEventsSortedNewestFirst(nearby.events, "nearby events are newest-first");
     return { listed, created, nearby };
   });
 
@@ -314,6 +317,27 @@ async function requestJson(path, options = {}) {
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function assertEventsSortedNewestFirst(events, message) {
+  assert(events.every((event, index) => index === 0 || compareEventsNewestFirst(events[index - 1], event) <= 0), message);
+}
+
+function assertEventsSortedByTimeline(events, message) {
+  assert(events.every((event, index) => index === 0 || compareEventsForTimeline(events[index - 1], event) <= 0), message);
+}
+
+function compareEventsNewestFirst(a, b) {
+  return eventTimeMs(b) - eventTimeMs(a) || b.t - a.t || String(a.id).localeCompare(String(b.id));
+}
+
+function compareEventsForTimeline(a, b) {
+  return a.t - b.t || eventTimeMs(a) - eventTimeMs(b) || String(a.id).localeCompare(String(b.id));
+}
+
+function eventTimeMs(event) {
+  const value = Date.parse(event.timestamp);
+  return Number.isFinite(value) ? value : 0;
 }
 
 function prefixServerLog(chunk) {
