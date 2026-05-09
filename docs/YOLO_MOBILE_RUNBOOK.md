@@ -65,6 +65,7 @@ curl http://localhost:3000/api/providers/status
 curl http://localhost:3000/api/replay/demo-ride-1
 curl 'http://localhost:3000/api/events?rideId=demo-ride-1'
 npm run smoke:yolo
+npm run smoke:mobile
 ```
 
 For the full backend arc:
@@ -74,6 +75,8 @@ npm run smoke:api
 ```
 
 `npm run smoke:yolo` exits successfully with a skip note when Next is down or `YOLO_SERVICE_URL` is unset. With Next running and `YOLO_SERVICE_URL=http://127.0.0.1:8000`, it should exercise provider readiness and `POST /api/perception/detect` through the Next proxy.
+
+`npm run smoke:mobile` mirrors the Expo capture flow from Node against `API_BASE_URL` or `http://localhost:3000` by default: provider preflight, ride start, `thumbnailBase64` upload, `/api/media/analyze-and-save` with `useYolo: true`, route append, voice fallback, and ride end. It creates and ends one smoke ride, saves one hazard event, and writes one thumbnail under `public/generated/uploads` on the target server. If `MONGODB_URI` is configured, the ride and event persist in MongoDB; run against a temporary dev server with sponsor/database env unset to keep those records in memory.
 
 ## 4. Run Expo mobile
 
