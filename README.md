@@ -12,6 +12,7 @@ Guardian Road turns phones into road safety sensors. Bike/scooter phones warn ri
 - `docs/FRIEND_TASKS.md` — independent task specs for replay and records.
 - `docs/REUSE_PLAN.md` — what to reuse from inspiration repos.
 - `docs/INTEGRATION_STATUS.md` — blockers and contract changes.
+- `docs/EXPO_MODEL_SETUP.md` — mobile model asset setup for React Native + Expo prebuild.
 
 ## Core loop
 
@@ -25,6 +26,11 @@ camera + GPS + IMU
 → Davis danger map
 → safety report
 ```
+
+## Apps
+
+- Root app: Three.js/R3F safety replay prototype.
+- `mobile/`: React Native + Expo prebuild capture app with camera UI, seeded detections, spoken alerts, and TFLite model assets.
 
 ## Track targets
 
