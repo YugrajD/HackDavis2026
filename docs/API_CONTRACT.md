@@ -99,6 +99,20 @@ export type DangerSegment = {
   explanation: string;
 };
 
+export type UploadedMedia = {
+  kind: "thumbnail" | "clip";
+  url: string;
+  bytes: number;
+  contentType: string;
+};
+
+export type MediaUploadResponse = {
+  clipUrl?: string;
+  thumbnailUrl?: string;
+  stored: UploadedMedia[];
+  persisted: "public/generated" | "data/uploads";
+};
+
 export type ReplayPayload = {
   ride: Ride;
   events: HazardEvent[];
@@ -161,12 +175,45 @@ Response:
 
 ### `POST /api/events`
 
-Creates one hazard event.
+Creates one hazard event. Clients may include `clipUrl` and `thumbnailUrl` from `/api/media/upload`.
 
 Response:
 
 ```json
 { "event": {}, "persisted": "memory" }
+```
+
+### `POST /api/media/upload`
+
+Uploads one frame/thumbnail and/or one clip. The local demo backend stores files under `public/generated/uploads` and returns public URLs that can be attached to `HazardEvent.clipUrl` and `HazardEvent.thumbnailUrl`.
+
+JSON request options:
+
+```json
+{
+  "imageBase64": "data:image/jpeg;base64,...",
+  "clipBase64": "data:video/webm;base64,..."
+}
+```
+
+Multipart request options:
+
+```txt
+frame | image | thumbnail: image file or base64 image
+clip | video: video file or base64 video
+```
+
+Response:
+
+```json
+{
+  "clipUrl": "/generated/uploads/clip-...webm",
+  "thumbnailUrl": "/generated/uploads/thumbnail-...jpg",
+  "stored": [
+    { "kind": "thumbnail", "url": "/generated/uploads/thumbnail-...jpg", "bytes": 12345, "contentType": "image/jpeg" }
+  ],
+  "persisted": "public/generated"
+}
 ```
 
 ### `POST /api/events/batch`

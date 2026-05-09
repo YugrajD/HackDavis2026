@@ -16,6 +16,7 @@ Update this whenever a shared contract changes or someone is blocked.
 - Initial contract is mirrored in `src/lib/contracts.ts` for app code.
 - Added explicit response envelopes for rides, events, danger segments, reports, and voice alerts.
 - Added memory-backed API stubs for ride creation/end, event creation/batch/nearby, frame analysis, report generation, and voice alerts.
+- Added `/api/media/upload` for frame/clip evidence stored under `public/generated/uploads`, returning `clipUrl` and `thumbnailUrl` for hazard events.
 
 ## Current integration assumptions
 
@@ -23,6 +24,7 @@ Update this whenever a shared contract changes or someone is blocked.
 - Replay should load `/api/replay/demo-ride-1`.
 - Records should load `/api/events?rideId=demo-ride-1` and `/api/danger-segments`.
 - Seed endpoint should be `/api/seed/demo`.
+- Capture ingestion page is `/capture`; it posts a frame to `/api/media/upload`, analyzes it through `/api/ai/analyze-frame`, saves the returned event through `/api/events`, and asks `/api/voice/alert` for alert audio or native TTS fallback.
 
 ## Blockers
 

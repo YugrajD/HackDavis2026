@@ -16,6 +16,9 @@ export default function Home() {
           <h1 className="mt-2 text-2xl font-semibold tracking-tight">Davis shared-road safety cockpit</h1>
         </div>
         <div className="hidden gap-3 text-sm text-slate-300 sm:flex">
+          <Link className="rounded-full border border-white/15 px-4 py-2 hover:border-cyanline/70" href="/capture">
+            Capture
+          </Link>
           <Link className="rounded-full border border-white/15 px-4 py-2 hover:border-cyanline/70" href="/replay/demo-ride-1">
             Replay placeholder
           </Link>
@@ -37,7 +40,10 @@ export default function Home() {
             Guardian Road collects rider and dashcam hazards, stores structured events, powers a 3D reconstruction, and turns repeated risk into Davis danger segments.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link className="rounded-full bg-cyanline px-5 py-3 text-sm font-semibold text-slate-950" href="/api/replay/demo-ride-1">
+            <Link className="rounded-full bg-cyanline px-5 py-3 text-sm font-semibold text-slate-950" href="/capture">
+              Open capture sensor
+            </Link>
+            <Link className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white hover:border-warning/70" href="/api/replay/demo-ride-1">
               Inspect replay JSON
             </Link>
             <Link className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white hover:border-warning/70" href="/api/events?rideId=demo-ride-1">

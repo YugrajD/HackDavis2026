@@ -90,6 +90,20 @@ export type DangerSegment = {
   explanation: string;
 };
 
+export type UploadedMedia = {
+  kind: "thumbnail" | "clip";
+  url: string;
+  bytes: number;
+  contentType: string;
+};
+
+export type MediaUploadResponse = {
+  clipUrl?: string;
+  thumbnailUrl?: string;
+  stored: UploadedMedia[];
+  persisted: "public/generated" | "data/uploads";
+};
+
 export type ReplayPayload = {
   ride: Ride;
   events: HazardEvent[];
