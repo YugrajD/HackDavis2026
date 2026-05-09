@@ -2,13 +2,36 @@
 
 Update this whenever a shared contract changes or someone is blocked.
 
+## Backend wired handoff
+
+Backend is ready for friends and judges. The complete endpoint matrix, env keys, runbook, repo reuse permission note, and remaining-work list live in `docs/BACKEND_WIRED_RUNBOOK.md`.
+
+Use this sequence for demos. Terminal A:
+
+```bash
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+Terminal B:
+
+```bash
+curl -X POST http://localhost:3000/api/seed/demo
+curl http://localhost:3000/api/replay/demo-ride-1
+curl 'http://localhost:3000/api/events?rideId=demo-ride-1'
+curl http://localhost:3000/api/danger-segments
+```
+
+No vendor key is required for the local demo. Real `MONGODB_URI`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, and `ELEVENLABS_API_KEY` remain secrets in `.env.local` only.
+
 ## Current owner map
 
 | Area | Owner | Paths | Status |
 |---|---|---|---|
-| Backend/API | Aktan/backend owner | `src/app/api/**`, `src/lib/db/**`, `src/lib/contracts.ts` | Seed API and stubs online |
+| Backend/API | Aktan/backend owner | `src/app/api/**`, `src/lib/db/**`, `src/lib/contracts.ts` | Wired for demo; see `docs/BACKEND_WIRED_RUNBOOK.md` |
 | 3D Replay | Replay friend | `src/app/replay/**`, `src/components/replay/**` | Unblocked by `/api/replay/demo-ride-1` |
-| Records | Records friend | `src/app/records/**`, `src/components/records/**` | Unblocked by `/api/events`, `/api/danger-segments`, `/api/ai/report` |
+| Records | Records friend | `src/app/records/**`, `src/components/records/**` | Unblocked by `/api/events`, `/api/danger-segments`, `/api/ai/report`, `/api/reports/export` |
 | Shell/design/docs | Orchestrator | `src/app/page.tsx`, `src/components/shell/**`, `docs/**` | Shell scaffolded |
 
 ## Shared contract changes
@@ -34,6 +57,12 @@ Update this whenever a shared contract changes or someone is blocked.
 ## Blockers
 
 None for replay or records. Both can build from seeded API responses now.
+
+Remaining work is limited to secrets and friends UI:
+
+- Add real Atlas/Gemini/Claude/ElevenLabs keys to `.env.local` for sponsor-backed live paths.
+- Build replay-owned UI under `src/app/replay/**`, `src/components/replay/**`, and `src/lib/replay/**`.
+- Build records-owned UI under `src/app/records/**`, `src/components/records/**`, and `src/lib/records/**`.
 
 ## Decisions
 

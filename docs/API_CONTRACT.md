@@ -2,6 +2,8 @@
 
 This file defines the shared backend contract. Replay and records should not invent separate shapes.
 
+Backend routes for this contract are wired. Use `docs/BACKEND_WIRED_RUNBOOK.md` for the endpoint matrix, local demo commands, environment keys, and remaining-work list.
+
 ## TypeScript contract
 
 The source of truth lives in `src/lib/contracts.ts` and is mirrored here for cross-team reference.

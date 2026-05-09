@@ -12,6 +12,7 @@ Guardian Road turns phones into road safety sensors. Bike/scooter phones warn ri
 - `docs/FRIEND_TASKS.md` — independent task specs for replay and records.
 - `docs/REUSE_PLAN.md` — what to reuse from inspiration repos.
 - `docs/INTEGRATION_STATUS.md` — blockers and contract changes.
+- `docs/BACKEND_WIRED_RUNBOOK.md` — wired endpoints, env keys, judge demo runbook, reuse permission, and remaining work.
 
 ## Core loop
 
@@ -25,6 +26,26 @@ camera + GPS + IMU
 → Davis danger map
 → safety report
 ```
+
+## Backend demo status
+
+The backend is wired for the judge/friends demo. Seed `demo-ride-1`, then replay can use `/api/replay/demo-ride-1` and records can use `/api/events?rideId=demo-ride-1`, `/api/danger-segments`, `/api/ai/report`, and `/api/reports/export`. The app runs without secrets through memory/stub providers; real Atlas, Gemini, Claude, and ElevenLabs keys go only in `.env.local`.
+
+Quick local check:
+
+```bash
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+Then in another terminal:
+
+```bash
+curl -X POST http://localhost:3000/api/seed/demo
+```
+
+See `docs/BACKEND_WIRED_RUNBOOK.md` for the full endpoint matrix, env key list, and demo commands.
 
 ## Track targets
 
