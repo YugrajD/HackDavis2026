@@ -46,9 +46,10 @@ Open in Expo Go or a dev build; grant **camera** (and **location** if you want r
 
 ## Flow
 
-1. `POST /api/media/upload` — thumbnail URL  
-2. `POST /api/media/analyze-and-save` with `useYolo: true` and no `perception` — server runs YOLO + `analyzeFrameObservation`, then save + optional Gemini copy  
-3. `POST /api/voice/alert` — play MP3 or `expo-speech` fallback  
+1. Capture one JPEG frame as base64 at `quality: 0.55` with `skipProcessing: false` so Expo honors compression and orientation before network upload.
+2. `POST /api/media/upload` with `thumbnailBase64` — stores the compressed thumbnail URL.
+3. `POST /api/media/analyze-and-save` with the same compressed `imageBase64`, `useYolo: true`, and the uploaded `thumbnailUrl` — server runs YOLO + `analyzeFrameObservation`, then saves + optional Gemini copy. The current server needs base64 for YOLO/Gemini; `thumbnailUrl` is attached as event evidence.
+4. `POST /api/voice/alert` — play MP3 or `expo-speech` fallback  
 
 ## Firewall
 

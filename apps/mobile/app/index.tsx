@@ -26,6 +26,8 @@ type VoiceResponse = {
   provider: string;
 };
 
+const CAPTURE_IMAGE_QUALITY = 0.55;
+
 function apiBase(): string {
   const fromExtra = Constants.expoConfig?.extra?.apiBaseUrl as string | undefined;
   return (fromExtra ?? "http://127.0.0.1:3000").replace(/\/$/, "");
@@ -82,7 +84,7 @@ export default function CaptureScreen() {
 
       const photo = await cameraRef.current.takePictureAsync({
         base64: true,
-        quality: 0.82,
+        quality: CAPTURE_IMAGE_QUALITY,
         shutterSound: false,
         skipProcessing: false,
       });
@@ -93,7 +95,7 @@ export default function CaptureScreen() {
 
       setStatus("Uploading…");
       const upload = await postJson<MediaUploadResponse>("/api/media/upload", {
-        imageBase64,
+        thumbnailBase64: imageBase64,
         imageMimeType: "image/jpeg",
       });
 
