@@ -1,0 +1,199 @@
+import type { CameraRole, DangerSegment, HazardEvent, HazardType, ReplayPayload, Ride, RideMode } from "@/lib/contracts";
+import { demoDangerSegments, demoEvents, demoRide } from "@/lib/seed/demo-data";
+
+export type EventFilters = {
+  rideId?: string;
+  type?: HazardType;
+  camera?: CameraRole;
+  mode?: RideMode;
+  minSeverity?: number;
+};
+
+export type CreateRideInput = {
+  mode: RideMode;
+  startLat: number;
+  startLng: number;
+};
+
+type StoreState = {
+  rides: Ride[];
+  events: HazardEvent[];
+  dangerSegments: DangerSegment[];
+};
+
+declare global {
+  // eslint-disable-next-line no-var
+  var guardianRoadStore: StoreState | undefined;
+}
+
+function initialState(): StoreState {
+  return {
+    rides: [demoRide],
+    events: [...demoEvents],
+    dangerSegments: [...demoDangerSegments],
+  };
+}
+
+function state(): StoreState {
+  if (!globalThis.guardianRoadStore) {
+    globalThis.guardianRoadStore = initialState();
+  }
+  return globalThis.guardianRoadStore;
+}
+
+export function resetDemoData() {
+  globalThis.guardianRoadStore = initialState();
+  return {
+    rideId: demoRide.id,
+    eventCount: demoEvents.length,
+    segmentCount: demoDangerSegments.length,
+  };
+}
+
+export function listRides() {
+  return state().rides;
+}
+
+export function getRide(rideId: string) {
+  return state().rides.find((ride) => ride.id === rideId) ?? null;
+}
+
+export function createRide(input: CreateRideInput) {
+  const ride: Ride = {
+    id: `ride-${Date.now()}`,
+    mode: input.mode,
+    startedAt: new Date().toISOString(),
+    startLat: input.startLat,
+    startLng: input.startLng,
+    route: [
+      {
+        t: 0,
+        lat: input.startLat,
+        lng: input.startLng,
+        speedMps: 0,
+        headingDeg: 0,
+      },
+    ],
+    stats: {
+      durationSec: 0,
+      distanceMeters: 0,
+      maxRisk: 0,
+      eventCount: 0,
+    },
+  };
+
+  state().rides.unshift(ride);
+  return ride;
+}
+
+export function endRide(rideId: string) {
+  const ride = getRide(rideId);
+  if (!ride) return null;
+
+  const endedAt = new Date().toISOString();
+  const events = listEvents({ rideId });
+  const maxRisk = events.reduce((max, event) => Math.max(max, event.severity), 0);
+
+  ride.endedAt = endedAt;
+  ride.stats = {
+    ...ride.stats,
+    durationSec: ride.route.at(-1)?.t ?? ride.stats.durationSec,
+    eventCount: events.length,
+    maxRisk,
+  };
+
+  return ride;
+}
+
+export function listEvents(filters: EventFilters = {}) {
+  const minSeverity = filters.minSeverity ?? 0;
+  const modeRideIds = filters.mode ? new Set(state().rides.filter((ride) => ride.mode === filters.mode).map((ride) => ride.id)) : null;
+
+  return state().events.filter((event) => {
+    if (filters.rideId && event.rideId !== filters.rideId) return false;
+    if (filters.type && event.type !== filters.type) return false;
+    if (filters.camera && event.camera !== filters.camera) return false;
+    if (modeRideIds && !modeRideIds.has(event.rideId)) return false;
+    if (event.severity < minSeverity) return false;
+    return true;
+  });
+}
+
+export function createEvent(input: Partial<HazardEvent>) {
+  const event: HazardEvent = {
+    id: input.id ?? `evt-${Date.now()}`,
+    rideId: input.rideId ?? demoRide.id,
+    t: input.t ?? 0,
+    timestamp: input.timestamp ?? new Date().toISOString(),
+    type: input.type ?? "road_obstruction",
+    severity: clamp(input.severity ?? 50, 0, 100),
+    confidence: clamp(input.confidence ?? 0.75, 0, 1),
+    lat: input.lat ?? demoRide.startLat,
+    lng: input.lng ?? demoRide.startLng,
+    headingDeg: input.headingDeg ?? 0,
+    speedMps: input.speedMps ?? 0,
+    camera: input.camera ?? "front",
+    spokenAlert: input.spokenAlert ?? "Road hazard ahead.",
+    explanation: input.explanation ?? "A road hazard was detected from the active camera feed.",
+    clipUrl: input.clipUrl,
+    thumbnailUrl: input.thumbnailUrl,
+    objects: input.objects ?? [],
+  };
+
+  state().events.unshift(event);
+  recomputeDangerSegments();
+  return event;
+}
+
+export function createEvents(inputs: Partial<HazardEvent>[]) {
+  return inputs.map((input) => createEvent(input));
+}
+
+export function listNearbyEvents(lat: number, lng: number, radiusM: number) {
+  return state().events.filter((event) => haversineMeters(lat, lng, event.lat, event.lng) <= radiusM);
+}
+
+export function listDangerSegments(bbox?: { westLng: number; southLat: number; eastLng: number; northLat: number }) {
+  if (!bbox) return state().dangerSegments;
+  return state().dangerSegments.filter(
+    (segment) =>
+      segment.centerLng >= bbox.westLng &&
+      segment.centerLng <= bbox.eastLng &&
+      segment.centerLat >= bbox.southLat &&
+      segment.centerLat <= bbox.northLat,
+  );
+}
+
+export function getReplayPayload(rideId: string): ReplayPayload | null {
+  const ride = getRide(rideId);
+  if (!ride) return null;
+
+  return {
+    ride,
+    events: listEvents({ rideId }),
+    dangerSegments: listDangerSegments(),
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+function recomputeDangerSegments() {
+  // Keep the hand-curated demo segments stable for now. Dynamic recompute can replace this
+  // once map matching is added.
+  state().dangerSegments = [...demoDangerSegments];
+}
+
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const earthRadiusM = 6371000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * earthRadiusM * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function clamp(value: number, min: number, max: number) {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}

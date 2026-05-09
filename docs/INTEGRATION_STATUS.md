@@ -6,14 +6,16 @@ Update this whenever a shared contract changes or someone is blocked.
 
 | Area | Owner | Paths | Status |
 |---|---|---|---|
-| Backend/API | Aktan/backend owner | `src/app/api/**`, `src/lib/db/**`, `src/lib/contracts.ts` | Not scaffolded yet |
-| 3D Replay | Replay friend | `src/app/replay/**`, `src/components/replay/**` | Waiting for seed API |
-| Records | Records friend | `src/app/records/**`, `src/components/records/**` | Waiting for seed API |
-| Shell/design/docs | Orchestrator | `src/app/page.tsx`, `src/components/shell/**`, `docs/**` | Docs started |
+| Backend/API | Aktan/backend owner | `src/app/api/**`, `src/lib/db/**`, `src/lib/contracts.ts` | Seed API and stubs online |
+| 3D Replay | Replay friend | `src/app/replay/**`, `src/components/replay/**` | Unblocked by `/api/replay/demo-ride-1` |
+| Records | Records friend | `src/app/records/**`, `src/components/records/**` | Unblocked by `/api/events`, `/api/danger-segments`, `/api/ai/report` |
+| Shell/design/docs | Orchestrator | `src/app/page.tsx`, `src/components/shell/**`, `docs/**` | Shell scaffolded |
 
 ## Shared contract changes
 
-None yet. Initial contract is in `docs/API_CONTRACT.md`.
+- Initial contract is mirrored in `src/lib/contracts.ts` for app code.
+- Added explicit response envelopes for rides, events, danger segments, reports, and voice alerts.
+- Added memory-backed API stubs for ride creation/end, event creation/batch/nearby, frame analysis, report generation, and voice alerts.
 
 ## Current integration assumptions
 
@@ -24,10 +26,11 @@ None yet. Initial contract is in `docs/API_CONTRACT.md`.
 
 ## Blockers
 
-None yet.
+None for replay or records. Both can build from seeded API responses now.
 
 ## Decisions
 
 - Build seeded demo data first so replay and records can proceed independently.
+- Keep demo API stubs backed by `src/lib/db/store.ts` and `src/lib/seed/demo-data.ts` until MongoDB persistence lands.
 - MongoDB Atlas is the target database for sponsor alignment.
 - Mirage MIT-licensed code may be reused with attribution. Other inspiration repos are pattern references unless license is clarified.

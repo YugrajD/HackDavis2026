@@ -4,7 +4,7 @@ This file defines the shared backend contract. Replay and records should not inv
 
 ## TypeScript contract
 
-The source of truth should live in `src/lib/contracts.ts` once the app is scaffolded.
+The source of truth lives in `src/lib/contracts.ts` and is mirrored here for cross-team reference.
 
 ```ts
 export type HazardType =
@@ -109,6 +109,16 @@ export type ReplayPayload = {
 
 ## Required endpoints
 
+### `GET /api/rides`
+
+Returns all known rides.
+
+Response:
+
+```json
+{ "rides": [] }
+```
+
 ### `POST /api/rides`
 
 Creates a ride.
@@ -126,32 +136,74 @@ Request:
 Response:
 
 ```json
-{ "ride": {} }
+{ "ride": {}, "persisted": "memory" }
 ```
 
 ### `GET /api/rides/:rideId`
 
 Returns one ride.
 
+Response:
+
+```json
+{ "ride": {} }
+```
+
 ### `PATCH /api/rides/:rideId/end`
 
 Ends ride and recalculates stats.
+
+Response:
+
+```json
+{ "ride": {} }
+```
 
 ### `POST /api/events`
 
 Creates one hazard event.
 
+Response:
+
+```json
+{ "event": {}, "persisted": "memory" }
+```
+
 ### `POST /api/events/batch`
 
 Creates many hazard events.
+
+Request:
+
+```json
+{ "events": [] }
+```
+
+Response:
+
+```json
+{ "events": [], "persisted": "memory" }
+```
 
 ### `GET /api/events?rideId=...`
 
 Returns events. Optional filters may be added: `type`, `minSeverity`, `mode`, `camera`.
 
+Response:
+
+```json
+{ "events": [] }
+```
+
 ### `GET /api/events/near?lat=...&lng=...&radiusM=...`
 
-Returns nearby events using Mongo geospatial query.
+Returns nearby events. Mongo geospatial queries can replace the in-memory Haversine implementation without changing the envelope.
+
+Response:
+
+```json
+{ "events": [] }
+```
 
 ### `GET /api/replay/:rideId`
 
@@ -171,6 +223,22 @@ Response:
 ### `GET /api/danger-segments?bbox=...`
 
 Returns dangerous street/area segments for the map and records dashboard.
+
+Response:
+
+```json
+{ "dangerSegments": [] }
+```
+
+### `GET /api/db/status`
+
+Reports whether MongoDB Atlas is configured and reachable. If not configured, the app uses the memory-backed demo store.
+
+Response:
+
+```json
+{ "configured": false, "connected": false, "mode": "memory" }
+```
 
 ### `POST /api/seed/demo`
 
@@ -208,7 +276,8 @@ Response:
   "confidence": 0.91,
   "spokenAlert": "Vehicle closing fast on your left.",
   "explanation": "A vehicle is approaching close to the rider's left side.",
-  "objects": []
+  "objects": [],
+  "provider": "stub"
 }
 ```
 
@@ -216,9 +285,35 @@ Response:
 
 Inputs a danger segment and related events. Returns a civic safety report.
 
+Request:
+
+```json
+{ "segmentId": "seg-russell-olive" }
+```
+
+Response:
+
+```json
+{
+  "report": {
+    "title": "...",
+    "summary": "...",
+    "evidence": [],
+    "recommendedFixes": []
+  },
+  "provider": "stub"
+}
+```
+
 ### `POST /api/voice/alert`
 
-Inputs text and returns an ElevenLabs-generated audio URL.
+Inputs text and returns an ElevenLabs-generated audio URL when wired. Until then, `audioUrl` is `null` and clients should use native TTS.
+
+Response:
+
+```json
+{ "text": "Road hazard ahead.", "audioUrl": null, "provider": "stub" }
+```
 
 ## Danger score formula
 
