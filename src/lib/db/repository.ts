@@ -1,6 +1,8 @@
+import type { Db } from "mongodb";
 import type { CameraRole, DangerSegment, HazardEvent, HazardType, ReplayPayload, Ride, RideMode } from "@/lib/contracts";
-import { demoDangerSegments, demoEvents, demoRide } from "@/lib/seed/demo-data";
 import { getMongoDb, isMongoConfigured, point } from "@/lib/db/mongo";
+import { computeDangerSegments } from "@/lib/geo/danger-segments";
+import { demoDangerSegments, demoEvents, demoRide } from "@/lib/seed/demo-data";
 import {
   buildEvent,
   buildRide,
@@ -105,6 +107,7 @@ export async function createEvent(input: Partial<HazardEvent>): Promise<Persiste
 
   const event = buildEvent(input);
   await db.collection<EventDocument>("events").insertOne(toEventDocument(event));
+  await recomputeMongoDangerSegments(db);
   return { value: event, persisted: "mongodb" };
 }
 
@@ -115,6 +118,7 @@ export async function createEvents(inputs: Partial<HazardEvent>[]): Promise<Pers
   const events = inputs.map(buildEvent);
   if (events.length) {
     await db.collection<EventDocument>("events").insertMany(events.map(toEventDocument));
+    await recomputeMongoDangerSegments(db);
   }
 
   return { value: events, persisted: "mongodb" };
@@ -202,6 +206,16 @@ async function configuredMongoDb() {
     return await getMongoDb();
   } catch {
     return null;
+  }
+}
+
+async function recomputeMongoDangerSegments(db: Db) {
+  const docs = await db.collection<EventDocument>("events").find({}, { projection: { _id: 0, location: 0 } }).toArray();
+  const dangerSegments = computeDangerSegments(docs.map(stripLocation));
+
+  await db.collection<DangerSegmentDocument>("danger_segments").deleteMany({});
+  if (dangerSegments.length) {
+    await db.collection<DangerSegmentDocument>("danger_segments").insertMany(dangerSegments.map(toDangerSegmentDocument));
   }
 }
 

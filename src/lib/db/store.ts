@@ -1,4 +1,5 @@
 import type { CameraRole, DangerSegment, HazardEvent, HazardType, ReplayPayload, Ride, RideMode } from "@/lib/contracts";
+import { computeDangerSegments, haversineMeters } from "@/lib/geo/danger-segments";
 import { demoDangerSegments, demoEvents, demoRide } from "@/lib/seed/demo-data";
 
 export type EventFilters = {
@@ -152,7 +153,10 @@ export function createEvent(input: Partial<HazardEvent>) {
 }
 
 export function createEvents(inputs: Partial<HazardEvent>[]) {
-  return inputs.map((input) => createEvent(input));
+  const events = inputs.map(buildEvent);
+  state().events.unshift(...events);
+  recomputeDangerSegments();
+  return events;
 }
 
 export function listNearbyEvents(lat: number, lng: number, radiusM: number) {
@@ -183,20 +187,7 @@ export function getReplayPayload(rideId: string): ReplayPayload | null {
 }
 
 function recomputeDangerSegments() {
-  // Keep the hand-curated demo segments stable for now. Dynamic recompute can replace this
-  // once map matching is added.
-  state().dangerSegments = [...demoDangerSegments];
-}
-
-function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const earthRadiusM = 6371000;
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return 2 * earthRadiusM * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  state().dangerSegments = computeDangerSegments(state().events);
 }
 
 function clamp(value: number, min: number, max: number) {
