@@ -5,7 +5,7 @@ We looked at four inspiration projects. The goal is to reuse what saves time wit
 ## Licensing rule
 
 - **Mirage** has an MIT license. We can directly reuse code with attribution.
-- **PathSense, LureLore, and ShipSense** did not expose a top-level license in the inspected repos. Do not copy their code or assets directly. Rebuild their patterns.
+- **PathSense, LureLore, and ShipSense** did not expose a top-level license in the inspected repos, but their owners approved Guardian Road reuse for this hackathon project. Keep attribution in `NOTICE.md` when porting useful helpers or patterns.
 
 ## 1. Mirage, TreeHacks 2026
 

@@ -17,6 +17,7 @@ Update this whenever a shared contract changes or someone is blocked.
 - Added explicit response envelopes for rides, events, danger segments, reports, and voice alerts.
 - Added memory-backed API stubs for ride creation/end, event creation/batch/nearby, frame analysis, report generation, and voice alerts.
 - Added `/api/media/upload` for frame/clip evidence stored under `public/generated/uploads`, returning `clipUrl` and `thumbnailUrl` for hazard events.
+- Added reuse ports/helpers: `/api/scenarios`, `/api/media/analyze-and-save`, `/api/reports/export`, a Spark/Three `SplatViewer`, perception worker helpers, hotspot utilities, and report exporters.
 
 ## Current integration assumptions
 
@@ -35,4 +36,4 @@ None for replay or records. Both can build from seeded API responses now.
 - Build seeded demo data first so replay and records can proceed independently.
 - Keep demo API stubs backed by `src/lib/db/store.ts` and `src/lib/seed/demo-data.ts` until MongoDB persistence lands.
 - MongoDB Atlas is the target database for sponsor alignment.
-- Mirage MIT-licensed code may be reused with attribution. Other inspiration repos are pattern references unless license is clarified.
+- Mirage MIT-licensed code may be reused with attribution. PathSense, LureLore, and ShipSense owners approved reuse for this hackathon project; attribution is tracked in `NOTICE.md`.

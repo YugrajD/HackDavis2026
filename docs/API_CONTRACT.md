@@ -216,6 +216,32 @@ Response:
 }
 ```
 
+### `POST /api/media/analyze-and-save`
+
+LureLore-inspired one-shot media pipeline. It accepts a frame plus optional stored media URLs, analyzes through Gemini when configured, persists a `HazardEvent` to MongoDB or memory, and returns the saved event.
+
+Request:
+
+```json
+{
+  "imageBase64": "data:image/jpeg;base64,...",
+  "rideId": "demo-ride-1",
+  "lat": 38.5449,
+  "lng": -121.7405,
+  "speedMps": 5.6,
+  "headingDeg": 90,
+  "camera": "front",
+  "thumbnailUrl": "/generated/uploads/thumbnail.jpg",
+  "clipUrl": "/generated/uploads/clip.webm"
+}
+```
+
+Response:
+
+```json
+{ "event": {}, "persisted": "memory", "provider": "gemini" }
+```
+
 ### `POST /api/events/batch`
 
 Creates many hazard events.
@@ -328,6 +354,22 @@ Response:
 }
 ```
 
+### `POST /api/scenarios`
+
+Mirage-inspired Scenario Lab helper. It turns a short road-safety prompt into a deterministic replay/perception scenario and a compatible hazard-event draft.
+
+Request:
+
+```json
+{ "prompt": "rear camera close pass on Russell Boulevard", "mode": "bike", "camera": "rear" }
+```
+
+Response:
+
+```json
+{ "scenario": {}, "hazardDraft": {}, "provider": "deterministic-scenario-lab" }
+```
+
 ### `POST /api/ai/report`
 
 Inputs a danger segment and related events. Returns a civic safety report.
@@ -350,6 +392,22 @@ Response:
   },
   "provider": "stub"
 }
+```
+
+### `POST /api/reports/export`
+
+ShipSense-inspired export helper. It generates a report for a danger segment and returns Markdown, HTML, or CSV for civic handoff.
+
+Request:
+
+```json
+{ "segmentId": "seg-russell-olive", "format": "markdown" }
+```
+
+Response:
+
+```json
+{ "report": {}, "segment": {}, "format": "markdown", "document": "# ..." }
 ```
 
 ### `POST /api/voice/alert`

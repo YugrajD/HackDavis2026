@@ -24,5 +24,6 @@ pnpm-debug.log*
 # TypeScript
 *.tsbuildinfo
 
-# runtime uploads
+# runtime/generated artifacts
 /public/generated/uploads/
+/public/generated/scenarios/
