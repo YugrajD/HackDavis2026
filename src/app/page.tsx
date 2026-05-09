@@ -19,11 +19,11 @@ export default function Home() {
           <Link className="rounded-full border border-white/15 px-4 py-2 hover:border-cyanline/70" href="/capture">
             Capture
           </Link>
-          <Link className="rounded-full border border-white/15 px-4 py-2 hover:border-cyanline/70" href="/replay/demo-ride-1">
-            Replay placeholder
+          <Link className="rounded-full border border-white/15 px-4 py-2 hover:border-cyanline/70" href="/api/replay/demo-ride-1">
+            Replay API
           </Link>
-          <Link className="rounded-full border border-white/15 px-4 py-2 hover:border-cyanline/70" href="/records">
-            Records placeholder
+          <Link className="rounded-full border border-white/15 px-4 py-2 hover:border-cyanline/70" href="/api/events?rideId=demo-ride-1">
+            Records API
           </Link>
         </div>
       </nav>
