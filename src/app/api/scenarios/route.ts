@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { PROVIDER_NAMES } from "@/lib/contracts";
 import type { ScenarioPrompt } from "@/lib/contracts";
 import { handleApiError, readJsonBody } from "@/lib/api/responses";
 import { generateScenarioResponse, scenarioPresets } from "@/lib/scenarios/road-scenarios";
@@ -6,7 +7,7 @@ import { generateScenarioResponse, scenarioPresets } from "@/lib/scenarios/road-
 export async function GET() {
   try {
     return NextResponse.json({
-      provider: "deterministic-scenario-lab",
+      provider: PROVIDER_NAMES.deterministicScenarioLab,
       presets: scenarioPresets,
       scenarios: scenarioPresets.map((prompt) => generateScenarioResponse({ prompt })),
     });
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
 
     if (prompts.length) {
       return NextResponse.json({
-        provider: "deterministic-scenario-lab",
+        provider: PROVIDER_NAMES.deterministicScenarioLab,
         scenarios: prompts.map((prompt, index) => generateScenarioResponse({ ...input, prompt, seed: input.seed === undefined ? undefined : input.seed + index })),
       });
     }

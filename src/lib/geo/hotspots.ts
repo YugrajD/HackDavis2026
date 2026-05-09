@@ -1,3 +1,4 @@
+import { RISK_SCORE_MAX, RISK_SCORE_MIN } from "@/lib/contracts";
 import type { DangerSegment, HazardEvent } from "@/lib/contracts";
 import { haversineMeters } from "@/lib/geo/danger-segments";
 
@@ -60,7 +61,7 @@ export function buildHotspotGrid(events: HazardEvent[], cellSizeM = 140): Hotspo
       return {
         id: `grid-${xIndex}-${yIndex}`,
         bbox: { westLng, southLat, eastLng, northLat },
-        score: Math.round(clamp(avgSeverity + repeatBonus, 0, 100)),
+        score: Math.round(clamp(avgSeverity + repeatBonus, RISK_SCORE_MIN, RISK_SCORE_MAX)),
         events: cellEvents,
       };
     })

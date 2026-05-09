@@ -1,4 +1,8 @@
+import { CONFIDENCE_MAX, CONFIDENCE_MIN, RISK_SCORE_MAX, RISK_SCORE_MIN, VEHICLE_ACTOR_TYPES, VULNERABLE_ACTOR_TYPES } from "@/lib/contracts";
 import type { ActorType, FrameDetection, FrameObservation, PerceptionResult, PerceptionRisk, RelativeLocation, TrackState } from "@/lib/contracts";
+
+const vehicleActorTypes: readonly ActorType[] = VEHICLE_ACTOR_TYPES;
+const vulnerableActorTypes: readonly ActorType[] = VULNERABLE_ACTOR_TYPES;
 
 const actorLabels: Array<[RegExp, ActorType]> = [
   [/truck|van/i, "truck"],
@@ -54,7 +58,7 @@ function detectionToTrack(detection: FrameDetection, index: number, current: Fra
     label: detection.label,
     description: detection.description,
     relativeLocation: detection.relativeLocation ?? relativeLocationFor(lateralOffset, current.camera),
-    confidence: clamp(detection.confidence, 0, 1),
+    confidence: clamp(detection.confidence, CONFIDENCE_MIN, CONFIDENCE_MAX),
     bbox: detection.bbox,
     position: { x: lateralOffset, y: 0, z: current.camera === "rear" ? -forward : forward },
     velocity: { x: 0, y: 0, z: current.camera === "rear" ? closingMps : -closingMps },
@@ -82,8 +86,8 @@ function scoreRisk(tracks: TrackState[], frame: FrameObservation): PerceptionRis
   }
 
   const severity = highest.riskScore;
-  const vehicle = ["car", "truck", "bus"].includes(highest.type);
-  const vulnerable = ["pedestrian", "bike", "scooter"].includes(highest.type);
+  const vehicle = vehicleActorTypes.includes(highest.type);
+  const vulnerable = vulnerableActorTypes.includes(highest.type);
   const nearCenter = Math.abs(highest.position?.x ?? 0) < 0.9;
   const reasons = [
     `primary:${highest.type}`,
@@ -146,8 +150,8 @@ function riskForTrack(track: TrackState, frame: FrameObservation) {
   const distanceRisk = clamp((12 - distance) * 7, 0, 70);
   const ttcRisk = clamp((4 - ttc) * 18, 0, 80);
   const speedRisk = clamp(speed * 3, 0, 24);
-  const typeBonus = ["car", "truck", "bus"].includes(track.type) ? 14 : track.type === "pedestrian" ? 10 : 6;
-  return Math.round(clamp(distanceRisk + ttcRisk + speedRisk + typeBonus, 0, 100));
+  const typeBonus = vehicleActorTypes.includes(track.type) ? 14 : track.type === "pedestrian" ? 10 : 6;
+  return Math.round(clamp(distanceRisk + ttcRisk + speedRisk + typeBonus, RISK_SCORE_MIN, RISK_SCORE_MAX));
 }
 
 function actorTypeFor(label: string): ActorType {

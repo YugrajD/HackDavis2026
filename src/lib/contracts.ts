@@ -23,6 +23,42 @@ export type ActorType =
 export type RideMode = "bike" | "scooter" | "car";
 export type CameraRole = "front" | "rear" | "dashcam";
 
+export const HAZARD_TYPES = [
+  "close_pass",
+  "vehicle_approach",
+  "pedestrian_conflict",
+  "pothole",
+  "road_obstruction",
+  "blocked_bike_lane",
+  "door_zone",
+  "hard_brake",
+  "intersection_conflict",
+] as const satisfies readonly HazardType[];
+
+export const ACTOR_TYPES = ["rider", "car", "truck", "bus", "bike", "scooter", "pedestrian", "cone", "obstacle"] as const satisfies readonly ActorType[];
+export const VEHICLE_ACTOR_TYPES = ["car", "truck", "bus"] as const satisfies readonly ActorType[];
+export const VULNERABLE_ACTOR_TYPES = ["pedestrian", "bike", "scooter"] as const satisfies readonly ActorType[];
+export const RIDE_MODES = ["bike", "scooter", "car"] as const satisfies readonly RideMode[];
+export const CAMERA_ROLES = ["front", "rear", "dashcam"] as const satisfies readonly CameraRole[];
+
+export const PROVIDER_NAMES = {
+  gemini: "gemini",
+  perception: "perception",
+  stub: "stub",
+  claude: "claude",
+  elevenLabs: "elevenlabs",
+  deterministicScenarioLab: "deterministic-scenario-lab",
+} as const;
+
+export const FRAME_ANALYSIS_PROVIDERS = [PROVIDER_NAMES.gemini, PROVIDER_NAMES.perception, PROVIDER_NAMES.stub] as const;
+
+export const SEVERITY_MIN = 0;
+export const SEVERITY_MAX = 100;
+export const RISK_SCORE_MIN = SEVERITY_MIN;
+export const RISK_SCORE_MAX = SEVERITY_MAX;
+export const CONFIDENCE_MIN = 0;
+export const CONFIDENCE_MAX = 1;
+
 export type RoutePoint = {
   t: number;
   lat: number;

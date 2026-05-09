@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI, SchemaType, type ResponseSchema } from "@google/generative-ai";
+import { ACTOR_TYPES, CONFIDENCE_MAX, CONFIDENCE_MIN, HAZARD_TYPES, SEVERITY_MAX, SEVERITY_MIN } from "@/lib/contracts";
 import type { ActorType, CameraRole, HazardEvent, HazardType, PerceptionResult, TrackedObject } from "@/lib/contracts";
 import { getSponsorConfig } from "@/lib/config/server";
 
@@ -17,24 +18,10 @@ export type AnalyzeFrameOutput = Pick<
   "type" | "severity" | "confidence" | "spokenAlert" | "explanation" | "objects"
 >;
 
-const hazardTypes: HazardType[] = [
-  "close_pass",
-  "vehicle_approach",
-  "pedestrian_conflict",
-  "pothole",
-  "road_obstruction",
-  "blocked_bike_lane",
-  "door_zone",
-  "hard_brake",
-  "intersection_conflict",
-];
-
-const actorTypes: ActorType[] = ["rider", "car", "truck", "bus", "bike", "scooter", "pedestrian", "cone", "obstacle"];
-
 const hazardSchema: ResponseSchema = {
   type: SchemaType.OBJECT,
   properties: {
-    type: { type: SchemaType.STRING, format: "enum", enum: hazardTypes },
+    type: { type: SchemaType.STRING, format: "enum", enum: [...HAZARD_TYPES] },
     severity: { type: SchemaType.NUMBER, description: "Risk score from 0 to 100." },
     confidence: { type: SchemaType.NUMBER, description: "Model confidence from 0 to 1." },
     spokenAlert: { type: SchemaType.STRING, description: "Short rider-safe voice warning, under 9 words." },
@@ -45,7 +32,7 @@ const hazardSchema: ResponseSchema = {
         type: SchemaType.OBJECT,
         properties: {
           id: { type: SchemaType.STRING },
-          type: { type: SchemaType.STRING, format: "enum", enum: actorTypes },
+          type: { type: SchemaType.STRING, format: "enum", enum: [...ACTOR_TYPES] },
           confidence: { type: SchemaType.NUMBER },
           bbox: { type: SchemaType.ARRAY, items: { type: SchemaType.NUMBER }, minItems: 4, maxItems: 4, nullable: true },
           distanceM: { type: SchemaType.NUMBER, nullable: true },
@@ -131,7 +118,7 @@ Context:
 - camera: ${input.camera ?? "front"}
 - local perception: ${perceptionSummary(input.perception)}
 
-Use the allowed hazard types exactly: ${hazardTypes.join(", ")}.
+Use the allowed hazard types exactly: ${HAZARD_TYPES.join(", ")}.
 Score severity by near-term rider/driver risk. Treat local perception as a tracking prior, but override it when the image contradicts it. Keep spokenAlert short enough for real-time voice playback. If no clear hazard is visible, return road_obstruction with low severity and low confidence rather than inventing a specific object.`,
     },
     { inlineData: image },
@@ -177,9 +164,9 @@ function normalizeAnalysis(value: unknown, input: AnalyzeFrameInput): AnalyzeFra
   const fallback = analyzeFrameStub(input);
   if (!isRecord(value)) return fallback;
 
-  const type = hazardTypes.includes(value.type as HazardType) ? (value.type as HazardType) : fallback.type;
-  const severity = clamp(toNumber(value.severity, fallback.severity), 0, 100);
-  const confidence = clamp(toNumber(value.confidence, fallback.confidence), 0, 1);
+  const type = HAZARD_TYPES.includes(value.type as HazardType) ? (value.type as HazardType) : fallback.type;
+  const severity = clamp(toNumber(value.severity, fallback.severity), SEVERITY_MIN, SEVERITY_MAX);
+  const confidence = clamp(toNumber(value.confidence, fallback.confidence), CONFIDENCE_MIN, CONFIDENCE_MAX);
   const spokenAlert = toNonEmptyString(value.spokenAlert, fallback.spokenAlert).slice(0, 160);
   const explanation = toNonEmptyString(value.explanation, fallback.explanation).slice(0, 500);
   const objects = Array.isArray(value.objects) ? value.objects.map(normalizeObject).filter((item): item is TrackedObject => Boolean(item)) : [];
@@ -189,8 +176,8 @@ function normalizeAnalysis(value: unknown, input: AnalyzeFrameInput): AnalyzeFra
 
 function normalizeObject(value: unknown): TrackedObject | null {
   if (!isRecord(value)) return null;
-  const type = actorTypes.includes(value.type as ActorType) ? (value.type as ActorType) : "obstacle";
-  const confidence = clamp(toNumber(value.confidence, 0.5), 0, 1);
+  const type = ACTOR_TYPES.includes(value.type as ActorType) ? (value.type as ActorType) : "obstacle";
+  const confidence = clamp(toNumber(value.confidence, 0.5), CONFIDENCE_MIN, CONFIDENCE_MAX);
   const id = toNonEmptyString(value.id, `obj-${type}-${Math.round(confidence * 100)}`);
   const bbox = Array.isArray(value.bbox) ? normalizeBbox(value.bbox) : undefined;
   const distanceM = value.distanceM === undefined || value.distanceM === null ? undefined : Math.max(0, toNumber(value.distanceM, 0));
@@ -201,7 +188,7 @@ function normalizeObject(value: unknown): TrackedObject | null {
 
 function normalizeBbox(values: unknown[]): [number, number, number, number] | undefined {
   if (values.length !== 4) return undefined;
-  const bbox = values.map((value) => clamp(toNumber(value, 0), 0, 1));
+  const bbox = values.map((value) => clamp(toNumber(value, 0), CONFIDENCE_MIN, CONFIDENCE_MAX));
   return [bbox[0], bbox[1], bbox[2], bbox[3]];
 }
 

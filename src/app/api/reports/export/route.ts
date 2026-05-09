@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { PROVIDER_NAMES } from "@/lib/contracts";
 import type { DangerSegment, HazardEvent, ReportExportFormat } from "@/lib/contracts";
 import { handleApiError, jsonError, readJsonBody } from "@/lib/api/responses";
 import { generateSafetyReport, generateSafetyReportWithClaude } from "@/lib/ai/report";
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     const report = claudeReport ?? generateSafetyReport(segment, eventsForReport);
     const exportPayload = buildReportExportPayload(format, report, segment, eventsForReport);
 
-    return NextResponse.json({ ...exportPayload, provider: claudeReport ? "claude" : "stub" });
+    return NextResponse.json({ ...exportPayload, provider: claudeReport ? PROVIDER_NAMES.claude : PROVIDER_NAMES.stub });
   } catch (error) {
     return handleApiError(error, "Export report failed.");
   }

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { CONFIDENCE_MAX, CONFIDENCE_MIN, SEVERITY_MAX, SEVERITY_MIN } from "@/lib/contracts";
 import type { CameraRole, DangerSegment, HazardEvent, HazardType, ReplayPayload, Ride, RideMode, RoutePoint } from "@/lib/contracts";
 import { sortEventsForTimeline, sortEventsNewestFirst } from "@/lib/db/event-ordering";
 import { computeDangerSegments, haversineMeters } from "@/lib/geo/danger-segments";
@@ -135,8 +136,8 @@ export function buildEvent(input: Partial<HazardEvent>) {
     t: input.t ?? 0,
     timestamp: input.timestamp ?? new Date().toISOString(),
     type: input.type ?? "road_obstruction",
-    severity: clamp(input.severity ?? 50, 0, 100),
-    confidence: clamp(input.confidence ?? 0.75, 0, 1),
+    severity: clamp(input.severity ?? 50, SEVERITY_MIN, SEVERITY_MAX),
+    confidence: clamp(input.confidence ?? 0.75, CONFIDENCE_MIN, CONFIDENCE_MAX),
     lat: input.lat ?? demoRide.startLat,
     lng: input.lng ?? demoRide.startLng,
     headingDeg: input.headingDeg ?? 0,

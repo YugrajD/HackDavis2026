@@ -4,6 +4,7 @@ import { sanitizePerceptionResult } from "@/lib/api/perception-input";
 import { cameraRoles, isFiniteNumber, isLatitude, isLongitude } from "@/lib/api/validation";
 import { analyzeFrameStub, analyzeFrameWithGemini, type AnalyzeFrameInput } from "@/lib/ai/hazard-analysis";
 import { getSponsorConfig } from "@/lib/config/server";
+import { PROVIDER_NAMES } from "@/lib/contracts";
 
 export async function POST(request: Request) {
   try {
@@ -15,19 +16,19 @@ export async function POST(request: Request) {
     if (gemini.apiKey) {
       try {
         const analysis = await analyzeFrameWithGemini(input);
-        if (analysis) return NextResponse.json({ ...analysis, provider: "gemini", perception: input.perception });
+        if (analysis) return NextResponse.json({ ...analysis, provider: PROVIDER_NAMES.gemini, perception: input.perception });
       } catch (error) {
         console.error("Gemini frame analysis failed; falling back to deterministic stub.", error);
       }
     }
 
     const analysis = analyzeFrameStub(input);
-    const provider = input.perception?.tracks.length ? "perception" : "stub";
+    const provider = input.perception?.tracks.length ? PROVIDER_NAMES.perception : PROVIDER_NAMES.stub;
     return NextResponse.json({
       ...analysis,
       provider,
       perception: input.perception,
-      note: provider === "perception"
+      note: provider === PROVIDER_NAMES.perception
         ? "Local perception worker supplied the tracking and risk payload. Set GEMINI_API_KEY to cross-check it with image analysis."
         : gemini.apiKey
           ? "Gemini was configured but unavailable, so the deterministic fallback returned this shape."

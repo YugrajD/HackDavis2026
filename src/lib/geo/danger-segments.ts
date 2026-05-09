@@ -1,3 +1,4 @@
+import { RISK_SCORE_MAX, RISK_SCORE_MIN } from "@/lib/contracts";
 import type { DangerSegment, HazardEvent, HazardType } from "@/lib/contracts";
 
 const CLUSTER_RADIUS_M = 180;
@@ -147,7 +148,7 @@ function buildDangerSegment(cluster: EventCluster, referenceTime: number): Dange
     label: seededTemplate?.label ?? `${familyLabels[cluster.family]} cluster near ${cluster.centerLat.toFixed(5)}, ${cluster.centerLng.toFixed(5)}`,
     centerLat,
     centerLng,
-    score: clamp(score, 0, 100),
+    score: clamp(score, RISK_SCORE_MIN, RISK_SCORE_MAX),
     eventCount: events.length,
     topTypes,
     lastSeen,

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { readJsonBody, handleApiError } from "@/lib/api/responses";
 import { safeText } from "@/lib/api/validation";
 import { getSponsorConfig } from "@/lib/config/server";
+import { PROVIDER_NAMES } from "@/lib/contracts";
 
 export async function POST(request: Request) {
   try {
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
           return NextResponse.json({
             text,
             audioUrl,
-            provider: "elevenlabs",
+            provider: PROVIDER_NAMES.elevenLabs,
             message: "Generated ElevenLabs alert audio. Clients can play audioUrl directly.",
           });
         }
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       text,
       audioUrl: null,
-      provider: "stub",
+      provider: PROVIDER_NAMES.stub,
       message: elevenLabs.apiKey
         ? "ElevenLabs was configured but unavailable. Frontend should use native TTS if audioUrl is null."
         : "Set ELEVENLABS_API_KEY to enable ElevenLabs audio. Frontend should use native TTS if audioUrl is null.",

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { PROVIDER_NAMES } from "@/lib/contracts";
 import type { DangerSegment, HazardEvent } from "@/lib/contracts";
 import { handleApiError, jsonError, readJsonBody } from "@/lib/api/responses";
 import { generateSafetyReport, generateSafetyReportWithClaude } from "@/lib/ai/report";
@@ -34,14 +35,14 @@ export async function POST(request: Request) {
     if (getSponsorConfig().anthropic.apiKey) {
       try {
         const report = await generateSafetyReportWithClaude(segment, eventsForReport);
-        if (report) return NextResponse.json({ report, provider: "claude" });
+        if (report) return NextResponse.json({ report, provider: PROVIDER_NAMES.claude });
       } catch (error) {
         console.error("Claude safety report generation failed; falling back to deterministic report.", error);
       }
     }
 
     const report = generateSafetyReport(segment, eventsForReport);
-    return NextResponse.json({ report, provider: "stub" });
+    return NextResponse.json({ report, provider: PROVIDER_NAMES.stub });
   } catch (error) {
     return handleApiError(error, "Generate report failed.");
   }

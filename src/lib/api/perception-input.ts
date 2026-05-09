@@ -1,7 +1,8 @@
+import { ACTOR_TYPES, CONFIDENCE_MAX, CONFIDENCE_MIN, RISK_SCORE_MAX, RISK_SCORE_MIN } from "@/lib/contracts";
 import type { ActorType, CameraRole, HazardEventDraft, HazardType, PerceptionResult, PerceptionRisk, RelativeLocation, TrackState } from "@/lib/contracts";
 import { cameraRoles, clamp, hazardTypes, isFiniteNumber, isLatitude, isLongitude, safeIdentifier, safeText } from "@/lib/api/validation";
 
-const actorTypes = new Set<ActorType>(["rider", "car", "truck", "bus", "bike", "scooter", "pedestrian", "cone", "obstacle"]);
+const actorTypes = new Set<ActorType>(ACTOR_TYPES);
 const relativeLocations = new Set<RelativeLocation>(["ahead", "behind", "left", "right", "center", "unknown"]);
 
 export function sanitizePerceptionResult(input: unknown): PerceptionResult | undefined {
@@ -44,7 +45,7 @@ export function sanitizePerceptionResult(input: unknown): PerceptionResult | und
 function sanitizeTrack(input: unknown): TrackState | null {
   if (!isRecord(input)) return null;
   const type = actorTypes.has(input.type as ActorType) ? (input.type as ActorType) : "obstacle";
-  const confidence = clamp(toNumber(input.confidence, 0.65), 0, 1);
+  const confidence = clamp(toNumber(input.confidence, 0.65), CONFIDENCE_MIN, CONFIDENCE_MAX);
   const id = safeIdentifier(input.id, 160) ?? `track-${type}-${Math.round(confidence * 100)}`;
 
   return {
@@ -59,7 +60,7 @@ function sanitizeTrack(input: unknown): TrackState | null {
     velocity: sanitizeVector(input.velocity),
     distanceM: isFiniteNumber(input.distanceM) && input.distanceM >= 0 ? input.distanceM : undefined,
     ttcSec: isFiniteNumber(input.ttcSec) && input.ttcSec >= 0 ? input.ttcSec : undefined,
-    riskScore: clamp(toNumber(input.riskScore, 0), 0, 100),
+    riskScore: clamp(toNumber(input.riskScore, RISK_SCORE_MIN), RISK_SCORE_MIN, RISK_SCORE_MAX),
     lastFrameId: safeIdentifier(input.lastFrameId, 160) ?? "frame-unknown",
     lastSeenAt: validIsoTime(input.lastSeenAt) ?? new Date().toISOString(),
   };
@@ -69,8 +70,8 @@ function sanitizeRisk(input: unknown, tracks: TrackState[]): PerceptionRisk {
   const record = isRecord(input) ? input : {};
   const highest = [...tracks].sort((a, b) => b.riskScore - a.riskScore)[0];
   const type = hazardTypes.has(record.type as HazardType) ? (record.type as HazardType) : highest ? "road_obstruction" : "road_obstruction";
-  const severity = clamp(toNumber(record.severity, highest?.riskScore ?? 18), 0, 100);
-  const confidence = clamp(toNumber(record.confidence, highest?.confidence ?? 0.35), 0, 1);
+  const severity = clamp(toNumber(record.severity, highest?.riskScore ?? 18), RISK_SCORE_MIN, RISK_SCORE_MAX);
+  const confidence = clamp(toNumber(record.confidence, highest?.confidence ?? 0.35), CONFIDENCE_MIN, CONFIDENCE_MAX);
   const spokenAlert = safeText(record.spokenAlert, 160) ?? (highest ? "Road hazard ahead." : "Path clear.");
   const explanation = safeText(record.explanation, 500) ?? (highest ? `${highest.type} track produced local perception risk.` : "No tracked road actor exceeded the hazard threshold.");
   const primaryObjectId = safeIdentifier(record.primaryObjectId, 160) ?? highest?.id;
@@ -81,7 +82,7 @@ function sanitizeRisk(input: unknown, tracks: TrackState[]): PerceptionRisk {
 
 function sanitizeBbox(value: unknown): [number, number, number, number] | undefined {
   if (!Array.isArray(value) || value.length !== 4) return undefined;
-  const bbox = value.map((item) => clamp(toNumber(item, 0), 0, 1));
+  const bbox = value.map((item) => clamp(toNumber(item, 0), CONFIDENCE_MIN, CONFIDENCE_MAX));
   return [bbox[0], bbox[1], bbox[2], bbox[3]];
 }
 

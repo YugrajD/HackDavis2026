@@ -1,6 +1,9 @@
+import { CAMERA_ROLES, PROVIDER_NAMES, RIDE_MODES, SEVERITY_MAX, SEVERITY_MIN } from "@/lib/contracts";
 import type { CameraRole, DangerSegment, HazardEvent, HazardEventDraft, HazardType, ReplayPayload, Ride, RideMode, RoadScenario, ScenarioPrompt, TrackedObject } from "@/lib/contracts";
 
 const baseScenarioTimestampMs = Date.parse("2026-05-09T16:00:00.000Z");
+const rideModes = new Set<RideMode>(RIDE_MODES);
+const cameraRoles = new Set<CameraRole>(CAMERA_ROLES);
 
 type HazardTemplate = {
   match: RegExp;
@@ -73,7 +76,7 @@ export function generateRoadScenario(input: ScenarioPrompt = {}): RoadScenario {
   const prompt = normalizePrompt(input.prompt);
   const seed = normalizeSeed(input.seed, prompt);
   const picked = hazardLexicon.find((item) => item.match.test(prompt)) ?? hazardLexicon[seed % hazardLexicon.length];
-  const severity = clamp(62 + (seed % 31), 0, 100);
+  const severity = clamp(62 + (seed % 31), SEVERITY_MIN, SEVERITY_MAX);
   const mode = normalizeMode(input.mode, prompt);
   const camera = normalizeCamera(input.camera, prompt, mode);
   const origin = {
@@ -175,7 +178,7 @@ export function generateScenarioResponse(input: ScenarioPrompt = {}) {
     scenario,
     hazardDraft: scenarioToHazardDraft(scenario),
     replayPayload: scenarioToReplayPayload(scenario),
-    provider: "deterministic-scenario-lab" as const,
+    provider: PROVIDER_NAMES.deterministicScenarioLab,
   };
 }
 
@@ -244,13 +247,13 @@ function normalizePrompt(value: unknown) {
 }
 
 function normalizeMode(value: unknown, prompt: string): RideMode {
-  if (value === "bike" || value === "scooter" || value === "car") return value;
+  if (typeof value === "string" && rideModes.has(value as RideMode)) return value as RideMode;
   if (prompt.match(/scooter/i)) return "scooter";
   return prompt.match(/car|dashcam|driver/i) ? "car" : "bike";
 }
 
 function normalizeCamera(value: unknown, prompt: string, mode: RideMode): CameraRole {
-  if (value === "front" || value === "rear" || value === "dashcam") return value;
+  if (typeof value === "string" && cameraRoles.has(value as CameraRole)) return value as CameraRole;
   return prompt.match(/behind|rear/i) ? "rear" : mode === "car" ? "dashcam" : "front";
 }
 

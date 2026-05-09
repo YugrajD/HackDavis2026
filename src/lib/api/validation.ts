@@ -1,19 +1,9 @@
+import { CAMERA_ROLES, HAZARD_TYPES, RIDE_MODES, SEVERITY_MAX, SEVERITY_MIN } from "@/lib/contracts";
 import type { CameraRole, HazardType, RideMode } from "@/lib/contracts";
 
-export const hazardTypes = new Set<HazardType>([
-  "close_pass",
-  "vehicle_approach",
-  "pedestrian_conflict",
-  "pothole",
-  "road_obstruction",
-  "blocked_bike_lane",
-  "door_zone",
-  "hard_brake",
-  "intersection_conflict",
-]);
-
-export const cameraRoles = new Set<CameraRole>(["front", "rear", "dashcam"]);
-export const rideModes = new Set<RideMode>(["bike", "scooter", "car"]);
+export const hazardTypes = new Set<HazardType>(HAZARD_TYPES);
+export const cameraRoles = new Set<CameraRole>(CAMERA_ROLES);
+export const rideModes = new Set<RideMode>(RIDE_MODES);
 
 export function parseEventFilters(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -27,7 +17,7 @@ export function parseEventFilters(request: Request) {
     type: type && hazardTypes.has(type) ? type : undefined,
     camera: camera && cameraRoles.has(camera) ? camera : undefined,
     mode: mode && rideModes.has(mode) ? mode : undefined,
-    minSeverity: Number.isFinite(minSeverityRaw) ? clamp(minSeverityRaw, 0, 100) : 0,
+    minSeverity: Number.isFinite(minSeverityRaw) ? clamp(minSeverityRaw, SEVERITY_MIN, SEVERITY_MAX) : SEVERITY_MIN,
   };
 }
 

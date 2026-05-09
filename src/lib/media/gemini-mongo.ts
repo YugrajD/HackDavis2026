@@ -1,3 +1,4 @@
+import { PROVIDER_NAMES } from "@/lib/contracts";
 import type { CameraRole, HazardEvent, PerceptionResult } from "@/lib/contracts";
 import { analyzeFrameStub, analyzeFrameWithGemini } from "@/lib/ai/hazard-analysis";
 import { getSponsorConfig } from "@/lib/config/server";
@@ -25,13 +26,13 @@ export type AnalyzeAndPersistMediaOutput = {
 };
 
 export async function analyzeAndPersistMedia(input: AnalyzeAndPersistMediaInput): Promise<AnalyzeAndPersistMediaOutput> {
-  const provider = getSponsorConfig().gemini.apiKey ? "gemini" : "stub";
-  let analysis = provider === "gemini" ? await analyzeFrameWithGemini(input).catch(() => null) : null;
+  const provider = getSponsorConfig().gemini.apiKey ? PROVIDER_NAMES.gemini : PROVIDER_NAMES.stub;
+  let analysis = provider === PROVIDER_NAMES.gemini ? await analyzeFrameWithGemini(input).catch(() => null) : null;
   let resolvedProvider: AnalyzeAndPersistMediaOutput["provider"] = provider;
 
   if (!analysis) {
     analysis = analyzeFrameStub(input);
-    resolvedProvider = input.perception?.tracks.length ? "perception" : "stub";
+    resolvedProvider = input.perception?.tracks.length ? PROVIDER_NAMES.perception : PROVIDER_NAMES.stub;
   }
 
   const draft = input.perception?.hazardDraft;
