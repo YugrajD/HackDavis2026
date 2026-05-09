@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { demoDangerSegments, demoEvents, demoRide } from "@/lib/seed/demo-data";
-import { resetDemoData } from "@/lib/db/store";
+import { resetDemoData } from "@/lib/db/repository";
 
 export async function POST() {
-  return NextResponse.json(resetDemoData());
+  return NextResponse.json(await resetDemoData());
 }
 
 export async function GET() {

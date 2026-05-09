@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import type { RideMode } from "@/lib/contracts";
-import { createRide, listRides } from "@/lib/db/store";
+import { createRide, listRides } from "@/lib/db/repository";
 import { rideModes } from "@/lib/api/validation";
 
 export async function GET() {
-  return NextResponse.json({ rides: listRides() });
+  return NextResponse.json({ rides: await listRides() });
 }
 
 export async function POST(request: Request) {
@@ -18,6 +18,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "startLat and startLng are required numbers" }, { status: 400 });
   }
 
-  const ride = createRide({ mode: body.mode, startLat: body.startLat!, startLng: body.startLng! });
-  return NextResponse.json({ ride, persisted: "memory" }, { status: 201 });
+  const { value: ride, persisted } = await createRide({ mode: body.mode, startLat: body.startLat!, startLng: body.startLng! });
+  return NextResponse.json({ ride, persisted }, { status: 201 });
 }

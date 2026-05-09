@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { DangerSegment, HazardEvent } from "@/lib/contracts";
 import { generateSafetyReport } from "@/lib/ai/report";
-import { listDangerSegments, listEvents } from "@/lib/db/store";
+import { listDangerSegments, listEvents } from "@/lib/db/repository";
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     events?: HazardEvent[];
   };
 
-  const segments = listDangerSegments();
+  const segments = await listDangerSegments();
   const requestedSegment = body.segmentId ? segments.find((item) => item.id === body.segmentId) : undefined;
 
   if (body.segmentId && !requestedSegment && !body.segment) {
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No danger segment available for report generation." }, { status: 404 });
   }
 
-  const eventPool = body.events ?? listEvents();
+  const eventPool = body.events ?? (await listEvents());
   const relatedEvents = eventPool.filter((event) => segment.topTypes.includes(event.type));
   const report = generateSafetyReport(segment, relatedEvents.length ? relatedEvents : eventPool);
 

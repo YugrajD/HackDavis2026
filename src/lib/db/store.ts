@@ -58,8 +58,8 @@ export function getRide(rideId: string) {
   return state().rides.find((ride) => ride.id === rideId) ?? null;
 }
 
-export function createRide(input: CreateRideInput) {
-  const ride: Ride = {
+export function buildRide(input: CreateRideInput) {
+  return {
     id: `ride-${Date.now()}`,
     mode: input.mode,
     startedAt: new Date().toISOString(),
@@ -80,8 +80,11 @@ export function createRide(input: CreateRideInput) {
       maxRisk: 0,
       eventCount: 0,
     },
-  };
+  } satisfies Ride;
+}
 
+export function createRide(input: CreateRideInput) {
+  const ride = buildRide(input);
   state().rides.unshift(ride);
   return ride;
 }
@@ -119,8 +122,8 @@ export function listEvents(filters: EventFilters = {}) {
   });
 }
 
-export function createEvent(input: Partial<HazardEvent>) {
-  const event: HazardEvent = {
+export function buildEvent(input: Partial<HazardEvent>) {
+  return {
     id: input.id ?? `evt-${Date.now()}`,
     rideId: input.rideId ?? demoRide.id,
     t: input.t ?? 0,
@@ -138,8 +141,11 @@ export function createEvent(input: Partial<HazardEvent>) {
     clipUrl: input.clipUrl,
     thumbnailUrl: input.thumbnailUrl,
     objects: input.objects ?? [],
-  };
+  } satisfies HazardEvent;
+}
 
+export function createEvent(input: Partial<HazardEvent>) {
+  const event = buildEvent(input);
   state().events.unshift(event);
   recomputeDangerSegments();
   return event;

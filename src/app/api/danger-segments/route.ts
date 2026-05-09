@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listDangerSegments } from "@/lib/db/store";
+import { listDangerSegments } from "@/lib/db/repository";
 import { parseBbox } from "@/lib/api/validation";
 
 export async function GET(request: Request) {
@@ -11,6 +11,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "bbox must be westLng,southLat,eastLng,northLat" }, { status: 400 });
   }
 
-  const dangerSegments = listDangerSegments(bbox ?? undefined);
+  const dangerSegments = await listDangerSegments(bbox ?? undefined);
   return NextResponse.json({ dangerSegments });
 }

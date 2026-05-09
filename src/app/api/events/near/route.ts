@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listNearbyEvents } from "@/lib/db/store";
+import { listNearbyEvents } from "@/lib/db/repository";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -11,5 +11,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "lat, lng, and radiusM must be numbers" }, { status: 400 });
   }
 
-  return NextResponse.json({ events: listNearbyEvents(lat, lng, radiusM) });
+  return NextResponse.json({ events: await listNearbyEvents(lat, lng, radiusM) });
 }
