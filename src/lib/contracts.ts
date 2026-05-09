@@ -130,6 +130,39 @@ export type AnalyzeAndSaveMediaResponse = {
   message: string;
 };
 
+export type ReadinessResponse = {
+  status: "ready" | "degraded";
+  generatedAt: string;
+  integrations: {
+    mongo: {
+      configured: boolean;
+      connected: boolean;
+      mode: "mongodb" | "memory" | "memory-fallback";
+      error?: string;
+    };
+    gemini: { configured: boolean };
+    anthropic: { configured: boolean };
+    elevenLabs: { configured: boolean };
+    uploads: {
+      configured: boolean;
+      writable: boolean;
+      relativePath: string;
+      error?: string;
+    };
+  };
+  data: {
+    source: "mongodb" | "memory";
+    rides: number;
+    events: number;
+    dangerSegments: number;
+    demoRide: {
+      id: string;
+      present: boolean;
+      eventCount: number;
+    };
+  };
+};
+
 export type HazardEvent = {
   id: string;
   rideId: string;

@@ -30,6 +30,19 @@ async function main() {
     return body;
   });
 
+  await step("read backend readiness", async () => {
+    const body = await requestJson("/api/health/readiness", { expectedStatus: [200, 503] });
+    assert(["ready", "degraded"].includes(body.status), "readiness reports status");
+    assert(typeof body.integrations?.mongo?.configured === "boolean", "readiness reports Mongo configuration state");
+    assert(typeof body.integrations?.gemini?.configured === "boolean", "readiness reports Gemini key presence");
+    assert(typeof body.integrations?.anthropic?.configured === "boolean", "readiness reports Anthropic key presence");
+    assert(typeof body.integrations?.elevenLabs?.configured === "boolean", "readiness reports ElevenLabs key presence");
+    assert(typeof body.integrations?.uploads?.writable === "boolean", "readiness reports upload writability");
+    assert(Number.isInteger(body.data?.events) && body.data.events >= seed.eventCount, "readiness reports seeded event count");
+    if (ownsServer) assert(body.status === "ready" && body.integrations.uploads.writable, "owned smoke server is ready");
+    return body;
+  });
+
   const replay = await step("load replay payload", async () => {
     const body = await requestJson(`/api/replay/${DEMO_RIDE_ID}`);
     assert(body.ride?.id === DEMO_RIDE_ID, "replay has demo ride");
@@ -292,8 +305,9 @@ async function requestJson(path, options = {}) {
     throw new Error(`${method} ${path} returned non-JSON body: ${text.slice(0, 300)}`, { cause: error });
   }
 
-  if (response.status !== expectedStatus) {
-    throw new Error(`${method} ${path} returned ${response.status}, expected ${expectedStatus}: ${JSON.stringify(body).slice(0, 500)}`);
+  const expectedStatuses = Array.isArray(expectedStatus) ? expectedStatus : [expectedStatus];
+  if (!expectedStatuses.includes(response.status)) {
+    throw new Error(`${method} ${path} returned ${response.status}, expected ${expectedStatuses.join(" or ")}: ${JSON.stringify(body).slice(0, 500)}`);
   }
 
   return body;

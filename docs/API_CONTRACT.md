@@ -256,6 +256,35 @@ export type AnalyzeAndSaveMediaResponse = {
   perception?: PerceptionResult;
   message: string;
 };
+
+export type ReadinessResponse = {
+  status: "ready" | "degraded";
+  generatedAt: string;
+  integrations: {
+    mongo: {
+      configured: boolean;
+      connected: boolean;
+      mode: "mongodb" | "memory" | "memory-fallback";
+      error?: string;
+    };
+    gemini: { configured: boolean };
+    anthropic: { configured: boolean };
+    elevenLabs: { configured: boolean };
+    uploads: {
+      configured: boolean;
+      writable: boolean;
+      relativePath: string;
+      error?: string;
+    };
+  };
+  data: {
+    source: "mongodb" | "memory";
+    rides: number;
+    events: number;
+    dangerSegments: number;
+    demoRide: { id: string; present: boolean; eventCount: number };
+  };
+};
 ```
 
 ## Required endpoints
@@ -456,6 +485,33 @@ Response:
 
 ```json
 { "configured": false, "connected": false, "mode": "memory" }
+```
+
+### `GET /api/health/readiness`
+
+Reports backend readiness without returning secret values. It checks Mongo connectivity, Gemini/Anthropic/ElevenLabs key presence, local upload directory writability, and current seeded data counts when available. A configured but unreachable MongoDB or unwritable upload directory returns `503` with `status: "degraded"`.
+
+Response:
+
+```json
+{
+  "status": "ready",
+  "generatedAt": "2026-05-09T00:00:00.000Z",
+  "integrations": {
+    "mongo": { "configured": false, "connected": false, "mode": "memory" },
+    "gemini": { "configured": false },
+    "anthropic": { "configured": false },
+    "elevenLabs": { "configured": false },
+    "uploads": { "configured": true, "writable": true, "relativePath": "public/generated/uploads" }
+  },
+  "data": {
+    "source": "memory",
+    "rides": 1,
+    "events": 6,
+    "dangerSegments": 3,
+    "demoRide": { "id": "demo-ride-1", "present": true, "eventCount": 6 }
+  }
+}
 ```
 
 ### `POST /api/seed/demo`
