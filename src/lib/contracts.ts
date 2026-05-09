@@ -371,6 +371,7 @@ export type ReportExportPayload = {
   document: string;
   filename: string;
   contentType: string;
+  exportUrl?: string;
   generatedAt: string;
   events: Array<Pick<HazardEvent, "id" | "timestamp" | "type" | "severity" | "lat" | "lng" | "camera" | "explanation">>;
 };

@@ -795,7 +795,7 @@ Response:
 
 ### `POST /api/reports/export`
 
-ShipSense-inspired export helper. It generates a report for a danger segment and returns an export payload for civic handoff. Supported formats: `markdown`, `html`, `csv`, and `pdf-text` plain text formatted like a PDF report. Request may include `segment` and `events` directly for scenario or offline exports; otherwise `segmentId` selects seeded or persisted backend data. Documented seeded IDs survive recomputation by exact ID or seeded label/top-types/location fallback.
+ShipSense-inspired export helper. It generates a report for a danger segment, persists the generated export under `public/generated/reports`, and returns the export payload for civic handoff. Supported formats: `markdown`, `html`, `csv`, and `pdf-text` plain text formatted like a PDF report. Request may include `segment` and `events` directly for scenario or offline exports; otherwise `segmentId` selects seeded or persisted backend data. Documented seeded IDs survive recomputation by exact ID or seeded label/top-types/location fallback.
 
 Request:
 
@@ -813,6 +813,7 @@ Response:
   "document": "GUARDIAN ROAD CIVIC SAFETY REPORT\n...",
   "filename": "seg-russell-olive-guardian-road-report.txt",
   "contentType": "text/plain; charset=utf-8",
+  "exportUrl": "/generated/reports/seg-russell-olive-guardian-road-report.txt",
   "generatedAt": "2026-05-09T16:26:32.000Z",
   "events": [],
   "provider": "stub"

@@ -10,4 +10,4 @@
 
 `POST /api/ai/report` returns a structured Vision Zero-style report for a backend segment or caller-provided segment/events.
 
-`POST /api/reports/export` returns the report plus an export document. Formats are `markdown`, `html`, `csv`, and `pdf-text`. The `pdf-text` format is plain text with report headers, wrapped sections, and an event appendix so the Records UI can download or print it without a PDF dependency.
+`POST /api/reports/export` returns the report plus an export document and persists the file under `public/generated/reports`. Formats are `markdown`, `html`, `csv`, and `pdf-text`; every response includes an `exportUrl` such as `/generated/reports/seg-russell-olive-guardian-road-report.txt`. The `pdf-text` format is plain text with report headers, wrapped sections, and an event appendix so the Records UI can download or print it without a PDF dependency.

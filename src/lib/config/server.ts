@@ -31,6 +31,10 @@ export type StorageConfig = {
       requestBytes: number;
     };
   };
+  reports: {
+    exportRoot: string;
+    publicPrefix: string;
+  };
 };
 
 export type ServerConfig = {
@@ -93,6 +97,10 @@ export function getStorageConfig(): StorageConfig {
         ...DEFAULT_MEDIA_LIMITS,
         requestBytes,
       },
+    },
+    reports: {
+      exportRoot: path.join(process.cwd(), "public", "generated", "reports"),
+      publicPrefix: "/generated/reports",
     },
   };
 }

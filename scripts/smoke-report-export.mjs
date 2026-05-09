@@ -61,8 +61,12 @@ try {
     );
   }
 
+  if (exportPayload.exportUrl !== `/generated/reports/${exportPayload.filename}`) {
+    throw new Error(`Export URL ${exportPayload.exportUrl ?? "<missing>"} did not match filename ${exportPayload.filename ?? "<missing>"}`);
+  }
+
   console.log(
-    `Smoke passed: ${segmentId} report/export resolved after recompute (${exportPayload.events?.length ?? 0} events, ${exportPayload.filename}).`,
+    `Smoke passed: ${segmentId} report/export resolved after recompute (${exportPayload.events?.length ?? 0} events, ${exportPayload.filename}, ${exportPayload.exportUrl}).`,
   );
 } finally {
   try {

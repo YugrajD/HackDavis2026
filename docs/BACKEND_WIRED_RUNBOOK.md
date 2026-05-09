@@ -17,7 +17,7 @@ Use `http://localhost:3000` as the local base URL.
 | YOLO detect (proxy) | `POST /api/perception/detect` | Wired; proxies to Python sidecar when `YOLO_SERVICE_URL` is set; 503 with `note` when unset | Mobile, tools |
 | Analyze and save | `POST /api/media/analyze-and-save` | Wired; optional `useYolo` runs COCO YOLO when perception omitted; Gemini when keyed (objects from YOLO, rider copy from Gemini when both) | Capture, mobile |
 | Frame analysis | `POST /api/ai/analyze-frame` | Wired; Gemini when keyed, perception/stub fallback otherwise | Capture |
-| Reports | `POST /api/ai/report`, `POST /api/reports/export` | Wired; Claude when keyed, deterministic report fallback otherwise | Records, judges |
+| Reports | `POST /api/ai/report`, `POST /api/reports/export` | Wired; Claude when keyed, deterministic report fallback otherwise; exports persist under `public/generated/reports` | Records, judges |
 | Voice alerts | `POST /api/voice/alert` | Wired; ElevenLabs when keyed, `audioUrl: null` fallback otherwise | Capture/rider mode |
 | Scenario Lab | `GET /api/scenarios`, `POST /api/scenarios` | Wired; deterministic prompt-to-road-danger output | Demo/judges |
 | DB status | `GET /api/db/status` | Wired; reports Atlas configuration and connection | Demo sanity check |
@@ -74,6 +74,7 @@ curl -X POST http://localhost:3000/api/ai/report \
 curl -X POST http://localhost:3000/api/reports/export \
   -H 'content-type: application/json' \
   -d '{"segmentId":"seg-russell-olive","format":"pdf-text"}'
+# response includes exportUrl, for example /generated/reports/seg-russell-olive-guardian-road-report.txt
 ```
 
 Optional full smoke check:
@@ -84,7 +85,7 @@ npm run build
 npm run smoke:api
 ```
 
-`npm run smoke:api` starts a temporary Next server if `API_BASE_URL` is not set, seeds demo data, exercises replay/events/media/report/scenario endpoints, and stops the server.
+`npm run smoke:api` starts a temporary Next server if `API_BASE_URL` is not set, seeds demo data, exercises replay/events/media/report/scenario endpoints, verifies the persisted report `exportUrl`, and stops the server.
 
 ## Repo reuse permission note
 

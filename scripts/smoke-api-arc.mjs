@@ -255,6 +255,10 @@ async function main() {
     });
     assert(exportBody.format === "markdown", "export returns requested format");
     assert(typeof exportBody.document === "string" && exportBody.document.includes(segment.label), "export includes segment label");
+    assert(typeof exportBody.filename === "string" && !/[\\/]/.test(exportBody.filename), "export returns a sanitized filename");
+    assert(typeof exportBody.exportUrl === "string" && exportBody.exportUrl === `/generated/reports/${exportBody.filename}`, "export returns persisted report URL");
+    const persistedDocument = await requestText(exportBody.exportUrl);
+    assert(persistedDocument === exportBody.document, "export URL serves the generated document");
     return { segment, reportBody, exportBody };
   });
 
@@ -374,6 +378,21 @@ async function requestJson(path, options = {}) {
   }
 
   return body;
+}
+
+async function requestText(path, options = {}) {
+  const method = options.method || "GET";
+  const expectedStatus = options.expectedStatus || 200;
+  const response = await fetch(`${baseUrl}${path}`, {
+    method,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+  const text = await response.text();
+  const expectedStatuses = Array.isArray(expectedStatus) ? expectedStatus : [expectedStatus];
+  if (!expectedStatuses.includes(response.status)) {
+    throw new Error(`${method} ${path} returned ${response.status}, expected ${expectedStatuses.join(" or ")}: ${text.slice(0, 500)}`);
+  }
+  return text;
 }
 
 function assert(condition, message) {

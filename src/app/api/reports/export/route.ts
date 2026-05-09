@@ -1,12 +1,16 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { NextResponse } from "next/server";
 import { PROVIDER_NAMES } from "@/lib/contracts";
 import type { DangerSegment, HazardEvent, ReportExportFormat } from "@/lib/contracts";
 import { handleApiError, jsonError, readJsonBody } from "@/lib/api/responses";
 import { generateSafetyReport, generateSafetyReportWithClaude } from "@/lib/ai/report";
-import { getSponsorConfig } from "@/lib/config/server";
+import { getSponsorConfig, getStorageConfig } from "@/lib/config/server";
 import { listDangerSegments, listEvents } from "@/lib/db/repository";
 import { resolveDangerSegment } from "@/lib/geo/danger-segments";
 import { buildReportExportPayload, type ExportFormat } from "@/lib/reports/export";
+
+export const runtime = "nodejs";
 
 const formats: ExportFormat[] = ["markdown", "html", "csv", "pdf-text"];
 
@@ -37,9 +41,17 @@ export async function POST(request: Request) {
     const claudeReport = getSponsorConfig().anthropic.apiKey ? await generateSafetyReportWithClaude(segment, eventsForReport).catch(() => null) : null;
     const report = claudeReport ?? generateSafetyReport(segment, eventsForReport);
     const exportPayload = buildReportExportPayload(format, report, segment, eventsForReport);
+    const exportUrl = await persistReportExport(exportPayload.filename, exportPayload.document);
 
-    return NextResponse.json({ ...exportPayload, provider: claudeReport ? PROVIDER_NAMES.claude : PROVIDER_NAMES.stub });
+    return NextResponse.json({ ...exportPayload, exportUrl, provider: claudeReport ? PROVIDER_NAMES.claude : PROVIDER_NAMES.stub });
   } catch (error) {
     return handleApiError(error, "Export report failed.");
   }
+}
+
+async function persistReportExport(filename: string, document: string) {
+  const { reports } = getStorageConfig();
+  await mkdir(reports.exportRoot, { recursive: true });
+  await writeFile(path.join(reports.exportRoot, filename), document, "utf8");
+  return `${reports.publicPrefix}/${filename}`;
 }

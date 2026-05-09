@@ -88,7 +88,20 @@ export function safetyReportPdfText(report: SafetyReport, segment: DangerSegment
 
 function reportFilename(segment: DangerSegment, format: ExportFormat) {
   const extension = format === "html" ? "html" : format === "csv" ? "csv" : format === "pdf-text" ? "txt" : "md";
-  return `${segment.id}-guardian-road-report.${extension}`;
+  return `${sanitizeFilename(`${segment.id}-guardian-road-report`)}.${extension}`;
+}
+
+function sanitizeFilename(value: string) {
+  const sanitized = value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/\.{2,}/g, ".")
+    .replace(/^[.-]+|[.-]+$/g, "")
+    .slice(0, 120);
+
+  return sanitized || "guardian-road-report";
 }
 
 function contentTypeFor(format: ExportFormat) {

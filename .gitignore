@@ -28,4 +28,5 @@ pnpm-debug.log*
 
 # runtime/generated artifacts
 /public/generated/uploads/
+/public/generated/reports/
 /public/generated/scenarios/
