@@ -8,6 +8,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "smoke:api": "node scripts/smoke-api-arc.mjs",
+    "smoke:api:errors": "node scripts/smoke-api-errors.mjs",
     "smoke:report": "node scripts/smoke-report-export.mjs",
     "smoke:yolo": "node scripts/smoke-yolo-detect.mjs",
     "demo:doctor": "node scripts/demo-doctor.mjs",

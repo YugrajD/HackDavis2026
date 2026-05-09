@@ -35,6 +35,12 @@ Optional end-to-end backend smoke:
 npm run smoke:api
 ```
 
+Optional error-envelope smoke against a running server:
+
+```bash
+npm run smoke:api:errors
+```
+
 ## Environment
 
 Copy `.env.example` to `.env.local`. The app runs without vendor keys by falling back to deterministic stubs and the memory store. Add these keys to enable sponsor-backed paths without changing API shapes:
