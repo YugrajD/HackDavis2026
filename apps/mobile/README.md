@@ -46,10 +46,13 @@ Open in Expo Go or a dev build; grant **camera** (and **location** if you want r
 
 ## Flow
 
-1. Capture one JPEG frame as base64 at `quality: 0.55` with `skipProcessing: false` so Expo honors compression and orientation before network upload.
-2. `POST /api/media/upload` with `thumbnailBase64` — stores the compressed thumbnail URL.
-3. `POST /api/media/analyze-and-save` with the same compressed `imageBase64`, `useYolo: true`, and the uploaded `thumbnailUrl` — server runs YOLO + `analyzeFrameObservation`, then saves + optional Gemini copy. The current server needs base64 for YOLO/Gemini; `thumbnailUrl` is attached as event evidence.
-4. `POST /api/voice/alert` — play MP3 or `expo-speech` fallback  
+1. `POST /api/rides` — start a live bike ride with the current GPS point. If this fails, the app keeps the demo fallback ride `demo-ride-1`.
+2. Capture one JPEG frame as base64 at `quality: 0.55` with `skipProcessing: false` so Expo honors compression and orientation before network upload.
+3. `POST /api/media/upload` with `thumbnailBase64` — stores the compressed thumbnail URL.
+4. `POST /api/media/analyze-and-save` with the same compressed `imageBase64`, `rideId`, `t` relative to `ride.startedAt`, `useYolo: true`, and the uploaded `thumbnailUrl` — server runs YOLO + `analyzeFrameObservation`, then saves + optional Gemini copy.
+5. `POST /api/rides/:rideId/route` — append one route point for the saved event.
+6. `POST /api/voice/alert` — play MP3 or `expo-speech` fallback.
+7. `PATCH /api/rides/:rideId/end` — end the active ride and refresh stats.
 
 ## Firewall
 

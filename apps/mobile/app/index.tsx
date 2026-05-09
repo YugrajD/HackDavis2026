@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Location from "expo-location";
 import Constants from "expo-constants";
 import { Audio } from "expo-av";
 import * as Speech from "expo-speech";
-import type { MediaUploadResponse } from "./types";
+import type { AppendRideRouteResponse, CreateRideResponse, EndRideResponse, MediaUploadResponse, Ride } from "./types";
 
 type AnalyzeResponse = {
   event: {
@@ -26,6 +26,22 @@ type VoiceResponse = {
   provider: string;
 };
 
+type Telemetry = {
+  lat: number;
+  lng: number;
+  speedMps: number;
+  headingDeg: number;
+};
+
+type ActiveRide = Pick<Ride, "id" | "startedAt"> & { fallback: boolean };
+
+type RideStart = {
+  ride: ActiveRide;
+  note?: string;
+};
+
+const DEMO_RIDE_ID = "demo-ride-1";
+const DEMO_ORIGIN = { lat: 38.5449, lng: -121.7405 };
 const CAPTURE_IMAGE_QUALITY = 0.55;
 
 function apiBase(): string {
@@ -33,27 +49,44 @@ function apiBase(): string {
   return (fromExtra ?? "http://127.0.0.1:3000").replace(/\/$/, "");
 }
 
-async function postJson<T>(path: string, body: unknown): Promise<T> {
+async function requestJson<T>(path: string, init: { method: "POST" | "PATCH"; body?: unknown }): Promise<T> {
   const url = `${apiBase()}${path}`;
   const response = await fetch(url, {
-    method: "POST",
+    method: init.method,
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
+    body: init.body === undefined ? undefined : JSON.stringify(init.body),
   });
   const payload = (await response.json()) as T & { error?: string };
   if (!response.ok) throw new Error(payload.error ?? `${path} ${response.status}`);
   return payload;
 }
 
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  return requestJson<T>(path, { method: "POST", body });
+}
+
+async function patchJson<T>(path: string): Promise<T> {
+  return requestJson<T>(path, { method: "PATCH" });
+}
+
+function ridePath(rideId: string, suffix: string): string {
+  return `/api/rides/${encodeURIComponent(rideId)}${suffix}`;
+}
+
+function secondsSince(startedAt: string, nowMs = Date.now()): number {
+  const startMs = Date.parse(startedAt);
+  if (!Number.isFinite(startMs)) return 0;
+  return Math.max(0, Math.round((nowMs - startMs) / 100) / 10);
+}
+
 export default function CaptureScreen() {
-  const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [locPermission, setLocPermission] = useState<boolean | null>(null);
+  const [cameraRef, setCameraRef] = useState<CameraView | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [last, setLast] = useState<AnalyzeResponse | null>(null);
-
-  const [rideId] = useState("demo-ride-1");
+  const [activeRide, setActiveRide] = useState<ActiveRide | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -62,27 +95,95 @@ export default function CaptureScreen() {
     })();
   }, []);
 
+  const readTelemetry = useCallback(async (): Promise<Telemetry> => {
+    let lat = DEMO_ORIGIN.lat;
+    let lng = DEMO_ORIGIN.lng;
+    let speedMps = 0;
+    let headingDeg = 0;
+
+    if (locPermission) {
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
+      lat = loc.coords.latitude;
+      lng = loc.coords.longitude;
+      if (loc.coords.speed != null && Number.isFinite(loc.coords.speed)) speedMps = Math.max(0, loc.coords.speed);
+      if (loc.coords.heading != null && Number.isFinite(loc.coords.heading) && loc.coords.heading >= 0) {
+        headingDeg = loc.coords.heading % 360;
+      }
+    }
+
+    return { lat, lng, speedMps, headingDeg };
+  }, [locPermission]);
+
+  const startRideFor = useCallback(async (telemetry: Telemetry): Promise<RideStart> => {
+    try {
+      const response = await postJson<CreateRideResponse>("/api/rides", {
+        mode: "bike",
+        startLat: telemetry.lat,
+        startLng: telemetry.lng,
+      });
+      const ride = { id: response.ride.id, startedAt: response.ride.startedAt, fallback: false };
+      setActiveRide(ride);
+      return { ride };
+    } catch (error) {
+      const ride = { id: DEMO_RIDE_ID, startedAt: new Date().toISOString(), fallback: true };
+      setActiveRide(ride);
+      return {
+        ride,
+        note: `Using demo ride fallback: ${error instanceof Error ? error.message : "create ride failed"}`,
+      };
+    }
+  }, []);
+
+  const ensureRide = useCallback(
+    async (telemetry: Telemetry): Promise<RideStart> => {
+      if (activeRide) return { ride: activeRide };
+      return startRideFor(telemetry);
+    },
+    [activeRide, startRideFor],
+  );
+
+  const startRide = useCallback(async () => {
+    if (activeRide) return;
+    setBusy(true);
+    setStatus("Starting ride…");
+    try {
+      const telemetry = await readTelemetry();
+      const started = await startRideFor(telemetry);
+      setStatus(started.note ?? `Ride ${started.ride.id} started.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Ride start failed");
+    } finally {
+      setBusy(false);
+    }
+  }, [activeRide, readTelemetry, startRideFor]);
+
+  const endRide = useCallback(async () => {
+    if (!activeRide) return;
+    setBusy(true);
+    setStatus("Ending ride…");
+    try {
+      const response = await patchJson<EndRideResponse>(ridePath(activeRide.id, "/end"));
+      setActiveRide(null);
+      setStatus(`Ride ${response.ride.id} ended with ${response.ride.stats.eventCount} events.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Ride end failed");
+    } finally {
+      setBusy(false);
+    }
+  }, [activeRide]);
+
   const capture = useCallback(async () => {
-    if (!cameraRef.current) return;
+    if (!cameraRef) return;
     setBusy(true);
     setStatus("Capturing…");
     setLast(null);
 
     try {
-      let lat = 38.5449;
-      let lng = -121.7405;
-      let speedMps = 0;
-      let headingDeg = 0;
+      const telemetry = await readTelemetry();
+      const started = await ensureRide(telemetry);
+      const ride = started.ride;
 
-      if (locPermission) {
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
-        lat = loc.coords.latitude;
-        lng = loc.coords.longitude;
-        if (loc.coords.speed != null && Number.isFinite(loc.coords.speed)) speedMps = loc.coords.speed;
-        if (loc.coords.heading != null && Number.isFinite(loc.coords.heading)) headingDeg = loc.coords.heading;
-      }
-
-      const photo = await cameraRef.current.takePictureAsync({
+      const photo = await cameraRef.takePictureAsync({
         base64: true,
         quality: CAPTURE_IMAGE_QUALITY,
         shutterSound: false,
@@ -92,6 +193,8 @@ export default function CaptureScreen() {
       if (!photo?.base64) throw new Error("Camera did not return base64.");
 
       const imageBase64 = `data:image/jpeg;base64,${photo.base64}`;
+      const t = secondsSince(ride.startedAt);
+      const point = { t, ...telemetry };
 
       setStatus("Uploading…");
       const upload = await postJson<MediaUploadResponse>("/api/media/upload", {
@@ -100,24 +203,23 @@ export default function CaptureScreen() {
       });
 
       setStatus("Analyzing (YOLO + save)…");
-      const t = Math.round(Date.now() / 1000) % 1_000_000;
-
       const saved = await postJson<AnalyzeResponse>("/api/media/analyze-and-save", {
         imageBase64,
-        rideId,
+        rideId: ride.id,
         t,
-        lat,
-        lng,
-        speedMps,
-        headingDeg,
+        ...telemetry,
         camera: "front",
         useYolo: true,
         clipUrl: upload.clipUrl,
         thumbnailUrl: upload.thumbnailUrl,
       });
 
+      setStatus("Appending route point…");
+      await postJson<AppendRideRouteResponse>(ridePath(ride.id, "/route"), { point });
+
       setLast(saved);
-      setStatus(saved.yoloNote ? `Saved (${saved.yoloNote})` : "Saved event.");
+      const note = started.note ? `${started.note}. ` : "";
+      setStatus(saved.yoloNote ? `${note}Saved event + route (${saved.yoloNote})` : `${note}Saved event + route.`);
 
       const voice = await postJson<VoiceResponse>("/api/voice/alert", { text: saved.event.spokenAlert });
       if (voice.audioUrl) {
@@ -136,7 +238,7 @@ export default function CaptureScreen() {
     } finally {
       setBusy(false);
     }
-  }, [locPermission]);
+  }, [cameraRef, ensureRide, readTelemetry]);
 
   if (!permission) {
     return (
@@ -167,8 +269,22 @@ export default function CaptureScreen() {
         YOLO_SERVICE_URL on the server.
       </Text>
 
+      <View style={styles.ridePanel}>
+        <Text style={styles.rideLabel}>Ride</Text>
+        <Text style={styles.rideValue}>{activeRide ? `${activeRide.id}${activeRide.fallback ? " (demo fallback)" : ""}` : "No active ride"}</Text>
+      </View>
+
+      <View style={styles.actionRow}>
+        <Pressable style={[styles.secondaryButton, (busy || Boolean(activeRide)) && styles.disabled]} onPress={() => void startRide()} disabled={busy || Boolean(activeRide)}>
+          <Text style={styles.secondaryText}>Start ride</Text>
+        </Pressable>
+        <Pressable style={[styles.secondaryButton, (busy || !activeRide) && styles.disabled]} onPress={() => void endRide()} disabled={busy || !activeRide}>
+          <Text style={styles.secondaryText}>End ride</Text>
+        </Pressable>
+      </View>
+
       <View style={styles.camWrap}>
-        <CameraView ref={cameraRef} style={styles.camera} facing="back" mode="picture" />
+        <CameraView ref={setCameraRef} style={styles.camera} facing="back" mode="picture" />
       </View>
 
       <Pressable style={[styles.capture, busy && styles.captureDisabled]} onPress={() => void capture()} disabled={busy}>
@@ -201,6 +317,27 @@ const styles = StyleSheet.create({
   tag: { fontFamily: "monospace", fontSize: 11, letterSpacing: 3, color: "#22d3ee", marginBottom: 8 },
   title: { fontSize: 26, fontWeight: "600", color: "#f8fafc", marginBottom: 8 },
   caption: { fontSize: 13, color: "#94a3b8", marginBottom: 8, lineHeight: 20 },
+  ridePanel: {
+    marginTop: 8,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  rideLabel: { fontFamily: "monospace", fontSize: 11, letterSpacing: 2, color: "#64748b", textTransform: "uppercase" },
+  rideValue: { color: "#e2e8f0", fontSize: 14, marginTop: 6 },
+  actionRow: { flexDirection: "row", gap: 10, marginTop: 12 },
+  secondaryButton: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(34,211,238,0.45)",
+    alignItems: "center",
+  },
+  secondaryText: { color: "#a5f3fc", fontWeight: "600" },
+  disabled: { opacity: 0.45 },
   camWrap: {
     borderRadius: 16,
     overflow: "hidden",
