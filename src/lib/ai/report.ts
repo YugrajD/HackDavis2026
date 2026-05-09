@@ -1,12 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { DangerSegment, HazardEvent } from "@/lib/contracts";
-
-export type SafetyReport = {
-  title: string;
-  summary: string;
-  evidence: string[];
-  recommendedFixes: string[];
-};
+import type { DangerSegment, HazardEvent, SafetyReport } from "@/lib/contracts";
 
 export function generateSafetyReport(segment: DangerSegment, events: HazardEvent[]): SafetyReport {
   const topType = segment.topTypes[0]?.replaceAll("_", " ") ?? "road hazard";
@@ -22,6 +15,9 @@ export function generateSafetyReport(segment: DangerSegment, events: HazardEvent
       `Most recent observation: ${new Date(segment.lastSeen).toLocaleString()}.`,
     ],
     recommendedFixes: recommendedFixesFor(segment),
+    generatedAt: deterministicReportTimestamp(segment, events),
+    segmentId: segment.id,
+    eventIds: events.map((event) => event.id),
   };
 }
 
@@ -39,7 +35,7 @@ export async function generateSafetyReportWithClaude(segment: DangerSegment, eve
     messages: [
       {
         role: "user",
-        content: `Create a civic safety report for this Guardian Road danger segment. Return JSON with exactly these keys: title (string), summary (string), evidence (array of strings), recommendedFixes (array of strings). Keep evidence tied to the provided observations. Keep recommended fixes concrete for city staff.
+        content: `Create a civic safety report for this Guardian Road danger segment. Return JSON with these keys: title (string), summary (string), evidence (array of strings), recommendedFixes (array of strings). Keep evidence tied to the provided observations. Keep recommended fixes concrete for city staff.
 
 Danger segment:
 ${JSON.stringify(segment, null, 2)}
@@ -84,6 +80,9 @@ function normalizeReport(value: unknown, segment: DangerSegment, events: HazardE
     summary: toNonEmptyString(value.summary, fallback.summary).slice(0, 1200),
     evidence: normalizeStringList(value.evidence, fallback.evidence, 8),
     recommendedFixes: normalizeStringList(value.recommendedFixes, fallback.recommendedFixes, 8),
+    generatedAt: fallback.generatedAt,
+    segmentId: segment.id,
+    eventIds: events.map((event) => event.id),
   };
 }
 
@@ -100,6 +99,11 @@ function recommendedFixesFor(segment: DangerSegment) {
 
   if (fixes.size === 0) fixes.add("Review the segment with city staff using the attached event clips and route traces.");
   return [...fixes];
+}
+
+function deterministicReportTimestamp(segment: DangerSegment, events: HazardEvent[]) {
+  const latestEventTime = events.map((event) => Date.parse(event.timestamp)).filter(Number.isFinite).sort((a, b) => b - a)[0];
+  return new Date(latestEventTime ?? Date.parse(segment.lastSeen)).toISOString();
 }
 
 function normalizeStringList(value: unknown, fallback: string[], maxItems: number) {

@@ -178,6 +178,69 @@ export type ReplayPayload = {
   generatedAt: string;
 };
 
+export type ScenarioPrompt = {
+  prompt?: string;
+  prompts?: string[];
+  mode?: RideMode;
+  camera?: CameraRole;
+  lat?: number;
+  lng?: number;
+  seed?: number;
+};
+
+export type ScenarioTimelineItem = Pick<
+  HazardEvent,
+  "t" | "timestamp" | "type" | "severity" | "confidence" | "lat" | "lng" | "spokenAlert" | "explanation" | "headingDeg" | "speedMps" | "objects"
+>;
+
+export type RoadScenario = {
+  id: string;
+  title: string;
+  prompt: string;
+  seed: number;
+  mode: RideMode;
+  camera: CameraRole;
+  origin: { lat: number; lng: number };
+  route: RoutePoint[];
+  timeline: ScenarioTimelineItem[];
+  reconstructionHints: {
+    splatPrompt: string;
+    cameraPath: Array<{ t: number; x: number; y: number; z: number; yawDeg: number }>;
+    riskZones: Array<{ t: number; radiusM: number; color: "amber" | "red" }>;
+  };
+  generatedAt: string;
+};
+
+export type ScenarioResponse = {
+  scenario: RoadScenario;
+  hazardDraft: HazardEventDraft & { rideId: string };
+  replayPayload: ReplayPayload;
+  provider: "deterministic-scenario-lab";
+};
+
+export type SafetyReport = {
+  title: string;
+  summary: string;
+  evidence: string[];
+  recommendedFixes: string[];
+  generatedAt: string;
+  segmentId: string;
+  eventIds: string[];
+};
+
+export type ReportExportFormat = "markdown" | "html" | "csv" | "pdf-text";
+
+export type ReportExportPayload = {
+  report: SafetyReport;
+  segment: DangerSegment;
+  format: ReportExportFormat;
+  document: string;
+  filename: string;
+  contentType: string;
+  generatedAt: string;
+  events: Array<Pick<HazardEvent, "id" | "timestamp" | "type" | "severity" | "lat" | "lng" | "camera" | "explanation">>;
+};
+
 export type AnalyzeFrameResponse = Pick<HazardEvent, "type" | "severity" | "confidence" | "spokenAlert" | "explanation" | "objects"> & {
   provider: "gemini" | "perception" | "stub";
   perception?: PerceptionResult;
@@ -443,20 +506,46 @@ Response:
 }
 ```
 
+### `GET /api/scenarios`
+
+Mirage-inspired Scenario Lab helper. Returns deterministic preset scenarios for prompt-to-road-danger demos. Each item includes a scenario, compatible hazard-event draft, and replay payload.
+
+Response:
+
+```json
+{
+  "provider": "deterministic-scenario-lab",
+  "presets": ["rear camera close pass on Russell Boulevard"],
+  "scenarios": [{ "scenario": {}, "hazardDraft": {}, "replayPayload": {}, "provider": "deterministic-scenario-lab" }]
+}
+```
+
 ### `POST /api/scenarios`
 
-Mirage-inspired Scenario Lab helper. It turns a short road-safety prompt into a deterministic replay/perception scenario and a compatible hazard-event draft.
+Turns a short road-safety prompt into a deterministic replay/perception scenario, compatible hazard-event draft, and replay payload. Same `prompt` + `seed` returns the same IDs, timestamps, route, event draft, and hotspot. Send `prompts` for a batch of up to 12 scenarios.
 
 Request:
 
 ```json
-{ "prompt": "rear camera close pass on Russell Boulevard", "mode": "bike", "camera": "rear" }
+{ "prompt": "rear camera close pass on Russell Boulevard", "mode": "bike", "camera": "rear", "seed": 42 }
+```
+
+Batch request:
+
+```json
+{ "prompts": ["blocked bike lane with cones near campus", "parked car door zone on a narrow street"] }
 ```
 
 Response:
 
 ```json
-{ "scenario": {}, "hazardDraft": {}, "provider": "deterministic-scenario-lab" }
+{ "scenario": {}, "hazardDraft": {}, "replayPayload": {}, "provider": "deterministic-scenario-lab" }
+```
+
+Batch response:
+
+```json
+{ "provider": "deterministic-scenario-lab", "scenarios": [] }
 ```
 
 ### `POST /api/ai/report`
@@ -477,7 +566,10 @@ Response:
     "title": "...",
     "summary": "...",
     "evidence": [],
-    "recommendedFixes": []
+    "recommendedFixes": [],
+    "generatedAt": "2026-05-09T16:26:32.000Z",
+    "segmentId": "seg-russell-olive",
+    "eventIds": []
   },
   "provider": "stub"
 }
@@ -485,18 +577,28 @@ Response:
 
 ### `POST /api/reports/export`
 
-ShipSense-inspired export helper. It generates a report for a danger segment and returns Markdown, HTML, or CSV for civic handoff.
+ShipSense-inspired export helper. It generates a report for a danger segment and returns an export payload for civic handoff. Supported formats: `markdown`, `html`, `csv`, and `pdf-text` plain text formatted like a PDF report. Request may include `segment` and `events` directly for scenario or offline exports; otherwise `segmentId` selects seeded or persisted backend data.
 
 Request:
 
 ```json
-{ "segmentId": "seg-russell-olive", "format": "markdown" }
+{ "segmentId": "seg-russell-olive", "format": "pdf-text" }
 ```
 
 Response:
 
 ```json
-{ "report": {}, "segment": {}, "format": "markdown", "document": "# ..." }
+{
+  "report": {},
+  "segment": {},
+  "format": "pdf-text",
+  "document": "GUARDIAN ROAD CIVIC SAFETY REPORT\n...",
+  "filename": "seg-russell-olive-guardian-road-report.txt",
+  "contentType": "text/plain; charset=utf-8",
+  "generatedAt": "2026-05-09T16:26:32.000Z",
+  "events": [],
+  "provider": "stub"
+}
 ```
 
 ### `POST /api/voice/alert`

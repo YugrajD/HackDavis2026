@@ -182,3 +182,66 @@ export type ReplayPayload = {
   dangerSegments: DangerSegment[];
   generatedAt: string;
 };
+
+export type ScenarioPrompt = {
+  prompt?: string;
+  prompts?: string[];
+  mode?: RideMode;
+  camera?: CameraRole;
+  lat?: number;
+  lng?: number;
+  seed?: number;
+};
+
+export type ScenarioTimelineItem = Pick<
+  HazardEvent,
+  "t" | "timestamp" | "type" | "severity" | "confidence" | "lat" | "lng" | "spokenAlert" | "explanation" | "headingDeg" | "speedMps" | "objects"
+>;
+
+export type RoadScenario = {
+  id: string;
+  title: string;
+  prompt: string;
+  seed: number;
+  mode: RideMode;
+  camera: CameraRole;
+  origin: { lat: number; lng: number };
+  route: RoutePoint[];
+  timeline: ScenarioTimelineItem[];
+  reconstructionHints: {
+    splatPrompt: string;
+    cameraPath: Array<{ t: number; x: number; y: number; z: number; yawDeg: number }>;
+    riskZones: Array<{ t: number; radiusM: number; color: "amber" | "red" }>;
+  };
+  generatedAt: string;
+};
+
+export type ScenarioResponse = {
+  scenario: RoadScenario;
+  hazardDraft: HazardEventDraft & { rideId: string };
+  replayPayload: ReplayPayload;
+  provider: "deterministic-scenario-lab";
+};
+
+export type SafetyReport = {
+  title: string;
+  summary: string;
+  evidence: string[];
+  recommendedFixes: string[];
+  generatedAt: string;
+  segmentId: string;
+  eventIds: string[];
+};
+
+export type ReportExportFormat = "markdown" | "html" | "csv" | "pdf-text";
+
+export type ReportExportPayload = {
+  report: SafetyReport;
+  segment: DangerSegment;
+  format: ReportExportFormat;
+  document: string;
+  filename: string;
+  contentType: string;
+  generatedAt: string;
+  events: Array<Pick<HazardEvent, "id" | "timestamp" | "type" | "severity" | "lat" | "lng" | "camera" | "explanation">>;
+};
