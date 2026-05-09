@@ -9,7 +9,7 @@ Use `http://localhost:3000` as the local base URL.
 | Surface | Endpoint | Status | Used by |
 |---|---|---|---|
 | Seed data | `POST /api/seed/demo` | Wired; resets demo ride, events, and danger segments | Everyone before demo |
-| Rides | `GET /api/rides`, `POST /api/rides`, `GET /api/rides/:rideId`, `PATCH /api/rides/:rideId/end` | Wired; memory or Mongo persistence | Capture, replay, records |
+| Rides | `GET /api/rides`, `POST /api/rides`, `GET /api/rides/:rideId`, `POST /api/rides/:rideId/route`, `PATCH /api/rides/:rideId/end` | Wired; memory or Mongo persistence | Capture, replay, records |
 | Events | `GET /api/events`, `POST /api/events`, `POST /api/events/batch`, `GET /api/events/near` | Wired; filters by ride/type/severity/mode/camera | Records, capture, map |
 | Replay | `GET /api/replay/:rideId` | Wired; main replay payload | 3D replay |
 | Danger segments | `GET /api/danger-segments` | Wired; recomputed from events with stable seeded IDs | Records, map, reports |
@@ -60,6 +60,9 @@ curl -X POST http://localhost:3000/api/seed/demo
 curl http://localhost:3000/api/db/status
 curl http://localhost:3000/api/replay/demo-ride-1
 curl 'http://localhost:3000/api/events?rideId=demo-ride-1'
+curl -X POST http://localhost:3000/api/rides/demo-ride-1/route \
+  -H 'content-type: application/json' \
+  -d '{"point":{"t":445,"lat":38.54499,"lng":-121.73555,"speedMps":4.2,"headingDeg":88}}'
 curl http://localhost:3000/api/danger-segments
 curl -X POST http://localhost:3000/api/ai/report \
   -H 'content-type: application/json' \

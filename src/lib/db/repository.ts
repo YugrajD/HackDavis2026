@@ -1,12 +1,14 @@
 import type { Db } from "mongodb";
-import type { CameraRole, DangerSegment, HazardEvent, HazardType, ReplayPayload, Ride, RideMode } from "@/lib/contracts";
+import type { CameraRole, DangerSegment, HazardEvent, HazardType, ReplayPayload, Ride, RideMode, RoutePoint } from "@/lib/contracts";
 import { sortEventsForTimeline, sortEventsNewestFirst } from "@/lib/db/event-ordering";
 import { getMongoDb, isMongoConfigured, point } from "@/lib/db/mongo";
 import { computeDangerSegments } from "@/lib/geo/danger-segments";
 import { demoDangerSegments, demoEvents, demoRide } from "@/lib/seed/demo-data";
 import {
+  appendRideRoute as appendMemoryRideRoute,
   buildEvent,
   buildRide,
+  calculateRideStats,
   createEvent as createMemoryEvent,
   createEvents as createMemoryEvents,
   createRide as createMemoryRide,
@@ -64,20 +66,36 @@ export async function endRide(rideId: string) {
   if (!ride) return null;
 
   const events = await listEvents({ rideId });
-  const maxRisk = events.reduce((max, event) => Math.max(max, event.severity), 0);
   const updatedRide: Ride = {
     ...ride,
     endedAt: new Date().toISOString(),
-    stats: {
-      ...ride.stats,
-      durationSec: ride.route.at(-1)?.t ?? ride.stats.durationSec,
-      eventCount: events.length,
-      maxRisk,
-    },
+    stats: calculateRideStats(ride.route, events),
   };
 
   await db.collection<Ride>("rides").replaceOne({ id: rideId }, updatedRide);
   return updatedRide;
+}
+
+export async function appendRideRoute(rideId: string, points: RoutePoint[]): Promise<Persisted<Ride> | null> {
+  const db = await configuredMongoDb();
+  if (!db) {
+    const ride = appendMemoryRideRoute(rideId, points);
+    return ride ? { value: ride, persisted: "memory" } : null;
+  }
+
+  const ride = await getRide(rideId);
+  if (!ride) return null;
+
+  const route = [...ride.route, ...points];
+  const events = await listEvents({ rideId });
+  const updatedRide: Ride = {
+    ...ride,
+    route,
+    stats: calculateRideStats(route, events),
+  };
+
+  await db.collection<Ride>("rides").replaceOne({ id: rideId }, updatedRide);
+  return { value: updatedRide, persisted: "mongodb" };
 }
 
 export async function listEvents(filters: EventFilters = {}) {

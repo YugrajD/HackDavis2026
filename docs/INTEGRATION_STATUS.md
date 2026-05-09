@@ -41,6 +41,7 @@ No vendor key is required for the local demo. Real `MONGODB_URI`, `GEMINI_API_KE
 - Added memory-backed API stubs for ride creation/end, event creation/batch/nearby, frame analysis, report generation, and voice alerts.
 - Added `/api/media/upload` for frame/clip evidence stored under `public/generated/uploads`, returning `clipUrl` and `thumbnailUrl` for hazard events.
 - Added reuse ports/helpers: `/api/scenarios`, `/api/media/analyze-and-save`, `/api/reports/export`, a Spark/Three `SplatViewer`, perception worker helpers, hotspot utilities, and report exporters.
+- Added `POST /api/rides/:rideId/route` so live capture can append route points to memory or Mongo-backed rides and refresh replay stats.
 - Added PathSense-style perception contracts for frame detections, local tracks, risk payloads, and worker output. `/api/ai/analyze-frame` and `/api/media/analyze-and-save` now accept optional `perception` payloads and can return provider `perception` when Gemini is not configured.
 - Backend readiness pass added JSON error envelopes, bounded JSON bodies, stricter media MIME/signature checks, route parameter safeguards, and deployment notes in `docs/BACKEND_DEPLOYMENT.md`.
 - Scenario/report wiring pass added deterministic `/api/scenarios` GET/POST payloads, replay-ready scenario output, shared report/export contracts, and `/api/reports/export` `pdf-text` output.

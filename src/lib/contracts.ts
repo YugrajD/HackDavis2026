@@ -47,6 +47,14 @@ export type Ride = {
   };
 };
 
+export type AppendRideRouteRequest = RoutePoint | RoutePoint[] | { point?: RoutePoint; points?: RoutePoint[] };
+
+export type AppendRideRouteResponse = {
+  ride: Ride;
+  appended: number;
+  persisted: "memory" | "mongodb";
+};
+
 export type TrackedObject = {
   id: string;
   type: ActorType;

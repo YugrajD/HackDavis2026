@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { CameraRole, DangerSegment, HazardEvent, HazardType, ReplayPayload, Ride, RideMode } from "@/lib/contracts";
+import type { CameraRole, DangerSegment, HazardEvent, HazardType, ReplayPayload, Ride, RideMode, RoutePoint } from "@/lib/contracts";
 import { sortEventsForTimeline, sortEventsNewestFirst } from "@/lib/db/event-ordering";
 import { computeDangerSegments, haversineMeters } from "@/lib/geo/danger-segments";
 import { demoDangerSegments, demoEvents, demoRide } from "@/lib/seed/demo-data";
@@ -96,17 +96,18 @@ export function endRide(rideId: string) {
   const ride = getRide(rideId);
   if (!ride) return null;
 
-  const endedAt = new Date().toISOString();
-  const events = listEvents({ rideId });
-  const maxRisk = events.reduce((max, event) => Math.max(max, event.severity), 0);
+  ride.endedAt = new Date().toISOString();
+  ride.stats = calculateRideStats(ride.route, listEvents({ rideId }));
 
-  ride.endedAt = endedAt;
-  ride.stats = {
-    ...ride.stats,
-    durationSec: ride.route.at(-1)?.t ?? ride.stats.durationSec,
-    eventCount: events.length,
-    maxRisk,
-  };
+  return ride;
+}
+
+export function appendRideRoute(rideId: string, points: RoutePoint[]) {
+  const ride = getRide(rideId);
+  if (!ride) return null;
+
+  ride.route.push(...points);
+  ride.stats = calculateRideStats(ride.route, listEvents({ rideId }));
 
   return ride;
 }
@@ -187,6 +188,20 @@ export function getReplayPayload(rideId: string): ReplayPayload | null {
     events: sortEventsForTimeline(listEvents({ rideId })),
     dangerSegments: listDangerSegments(),
     generatedAt: new Date().toISOString(),
+  };
+}
+
+export function calculateRideStats(route: RoutePoint[], events: HazardEvent[]) {
+  const distanceMeters = route.slice(1).reduce((sum, point, index) => {
+    const previous = route[index];
+    return sum + haversineMeters(previous.lat, previous.lng, point.lat, point.lng);
+  }, 0);
+
+  return {
+    durationSec: route.at(-1)?.t ?? 0,
+    distanceMeters: Math.round(distanceMeters),
+    maxRisk: events.reduce((max, event) => Math.max(max, event.severity), 0),
+    eventCount: events.length,
   };
 }
 

@@ -55,6 +55,35 @@ async function main() {
     return body;
   });
 
+  await step("create ride and append route", async () => {
+    const createdRide = await requestJson("/api/rides", {
+      method: "POST",
+      expectedStatus: 201,
+      body: {
+        mode: "bike",
+        startLat: replay.ride.startLat,
+        startLng: replay.ride.startLng,
+      },
+    });
+    assert(createdRide.ride?.id?.startsWith("ride-"), "ride create returns ride id");
+
+    const appended = await requestJson(`/api/rides/${createdRide.ride.id}/route`, {
+      method: "POST",
+      body: {
+        points: [
+          { t: 6, lat: replay.ride.startLat + 0.00002, lng: replay.ride.startLng + 0.00008, speedMps: 4.1, headingDeg: 84 },
+          { t: 13, lat: replay.ride.startLat + 0.00004, lng: replay.ride.startLng + 0.00018, speedMps: 4.8, headingDeg: 87 },
+        ],
+      },
+    });
+    assert(appended.appended === 2, "route append reports point count");
+    assert(appended.persisted === "memory" || appended.persisted === "mongodb", "route append reports persistence mode");
+    assert(appended.ride?.route?.length === 3, "route append extends ride route");
+    assert(appended.ride?.stats?.durationSec === 13, "route append recalculates duration");
+    assert(appended.ride?.stats?.distanceMeters > 0, "route append recalculates distance");
+    return appended;
+  });
+
   const events = await step("list and create events", async () => {
     const listed = await requestJson(`/api/events?rideId=${DEMO_RIDE_ID}&minSeverity=50`);
     assert(Array.isArray(listed.events) && listed.events.length > 0, "events list is non-empty");

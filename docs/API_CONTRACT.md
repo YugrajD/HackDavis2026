@@ -58,6 +58,14 @@ export type Ride = {
   };
 };
 
+export type AppendRideRouteRequest = RoutePoint | RoutePoint[] | { point?: RoutePoint; points?: RoutePoint[] };
+
+export type AppendRideRouteResponse = {
+  ride: Ride;
+  appended: number;
+  persisted: "memory" | "mongodb";
+};
+
 export type TrackedObject = {
   id: string;
   type: ActorType;
@@ -338,6 +346,26 @@ Response:
 
 ```json
 { "ride": {} }
+```
+
+### `POST /api/rides/:rideId/route`
+
+Appends one or many replay route points to an existing ride and recalculates `ride.stats.durationSec`, `distanceMeters`, `maxRisk`, and `eventCount`. The memory store and MongoDB Atlas path use the same response envelope.
+
+Request options:
+
+```json
+{ "point": { "t": 4, "lat": 38.54491, "lng": -121.7402, "speedMps": 4.8, "headingDeg": 87 } }
+```
+
+```json
+{ "points": [{ "t": 4, "lat": 38.54491, "lng": -121.7402, "speedMps": 4.8, "headingDeg": 87 }] }
+```
+
+Response:
+
+```json
+{ "ride": {}, "appended": 1, "persisted": "memory" }
 ```
 
 ### `POST /api/events`
