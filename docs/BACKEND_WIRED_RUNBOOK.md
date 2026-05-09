@@ -59,7 +59,7 @@ npm run dev
 Terminal B:
 
 ```bash
-curl -X POST http://localhost:3000/api/seed/demo
+npm run demo:doctor
 curl http://localhost:3000/api/db/status
 curl http://localhost:3000/api/providers/status
 curl http://localhost:3000/api/replay/demo-ride-1
@@ -91,7 +91,7 @@ npm run smoke:report
 npm run smoke:yolo
 ```
 
-`npm run smoke:api` starts a temporary Next server if `API_BASE_URL` is not set, seeds demo data, exercises readiness/provider status plus replay/events/media/report/scenario endpoints, verifies the persisted report `exportUrl`, and stops the server. `npm run smoke:report` exercises `/api/ai/report` and `/api/reports/export` against `GUARDIAN_ROAD_BASE_URL`, then `API_BASE_URL`, then `http://localhost:3000`; it preserves `GUARDIAN_ROAD_BASE_URL` for existing report-export workflows. `npm run smoke:yolo` checks provider YOLO readiness plus `POST /api/perception/detect` when a Next server is reachable; it exits 0 with a skip note when the server is down or `YOLO_SERVICE_URL` is unset.
+`npm run demo:doctor` checks an already-running server at `API_BASE_URL` (default `http://localhost:3000`). It seeds the demo, reads readiness and provider status, validates `/api/replay/demo-ride-1`, `/api/events?rideId=demo-ride-1`, and `/api/danger-segments`, then prints fixes for missing seeded data, unwritable uploads, degraded MongoDB, and unset or unreachable YOLO. `npm run smoke:api` starts a temporary Next server if `API_BASE_URL` is not set, seeds demo data, exercises readiness/provider status plus replay/events/media/report/scenario endpoints, verifies the persisted report `exportUrl`, and stops the server. `npm run smoke:report` exercises `/api/ai/report` and `/api/reports/export` against `GUARDIAN_ROAD_BASE_URL`, then `API_BASE_URL`, then `http://localhost:3000`; it preserves `GUARDIAN_ROAD_BASE_URL` for existing report-export workflows. `npm run smoke:yolo` checks provider YOLO readiness plus `POST /api/perception/detect` when a Next server is reachable; it exits 0 with a skip note when the server is down or `YOLO_SERVICE_URL` is unset.
 
 ## Repo reuse permission note
 

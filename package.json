@@ -10,6 +10,7 @@
     "smoke:api": "node scripts/smoke-api-arc.mjs",
     "smoke:report": "node scripts/smoke-report-export.mjs",
     "smoke:yolo": "node scripts/smoke-yolo-detect.mjs",
+    "demo:doctor": "node scripts/demo-doctor.mjs",
     "scenarios:generate": "node scripts/generate-road-scenarios.mjs",
     "mobile:start": "npm --prefix apps/mobile run start",
     "mobile:typecheck": "npm --prefix apps/mobile run typecheck"

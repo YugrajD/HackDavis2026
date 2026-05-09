@@ -43,10 +43,10 @@ npm run dev
 Then in another terminal:
 
 ```bash
-curl -X POST http://localhost:3000/api/seed/demo
+npm run demo:doctor
 ```
 
-See `docs/BACKEND_WIRED_RUNBOOK.md` for the full endpoint matrix, env key list, and demo commands.
+The doctor seeds the demo and checks readiness, provider status, replay, events, and danger segments against `API_BASE_URL` (default `http://localhost:3000`). See `docs/BACKEND_WIRED_RUNBOOK.md` for the full endpoint matrix, env key list, and demo commands.
 
 ## Track targets
 
