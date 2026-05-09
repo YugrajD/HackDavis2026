@@ -302,6 +302,40 @@ export type AnalyzeAndSaveMediaResponse = {
   message: string;
 };
 
+export type ProviderStatusResponse = {
+  status: "ready" | "degraded";
+  generatedAt: string;
+  providers: {
+    mongodb: {
+      configured: boolean;
+      available: boolean;
+      mode: "mongodb" | "memory" | "memory-fallback";
+      check: "ping" | "failed-ping" | "not-configured";
+      error?: string;
+    };
+    gemini: { configured: boolean; available: boolean; check: "configuration"; fallback: "stub" };
+    claude: { configured: boolean; available: boolean; check: "configuration"; fallback: "stub" };
+    elevenLabs: { configured: boolean; available: boolean; check: "configuration"; fallback: "native-tts" };
+    uploadStorage: {
+      configured: boolean;
+      available: boolean;
+      writable: boolean;
+      relativePath: string;
+      check: "write-probe";
+      error?: string;
+    };
+    localFallback: {
+      configured: true;
+      available: true;
+      persistence: "memory";
+      frameAnalysis: "stub";
+      reports: "stub";
+      voice: "native-tts";
+      scenarios: "deterministic-scenario-lab";
+    };
+  };
+};
+
 export type ReadinessResponse = {
   status: "ready" | "degraded";
   generatedAt: string;
@@ -582,6 +616,35 @@ Response:
 
 ```json
 { "configured": false, "connected": false, "mode": "memory" }
+```
+
+### `GET /api/providers/status`
+
+Reports sanitized configured/available status for MongoDB, Gemini, Claude, ElevenLabs, upload storage, and local fallback paths. It never returns secret values. Remote AI providers use configuration checks only; MongoDB uses a ping check, and upload storage uses a local write probe.
+
+Response:
+
+```json
+{
+  "status": "ready",
+  "generatedAt": "2026-05-09T00:00:00.000Z",
+  "providers": {
+    "mongodb": { "configured": false, "available": false, "mode": "memory", "check": "not-configured" },
+    "gemini": { "configured": false, "available": false, "check": "configuration", "fallback": "stub" },
+    "claude": { "configured": false, "available": false, "check": "configuration", "fallback": "stub" },
+    "elevenLabs": { "configured": false, "available": false, "check": "configuration", "fallback": "native-tts" },
+    "uploadStorage": { "configured": true, "available": true, "writable": true, "relativePath": "public/generated/uploads", "check": "write-probe" },
+    "localFallback": {
+      "configured": true,
+      "available": true,
+      "persistence": "memory",
+      "frameAnalysis": "stub",
+      "reports": "stub",
+      "voice": "native-tts",
+      "scenarios": "deterministic-scenario-lab"
+    }
+  }
+}
 ```
 
 ### `GET /api/health/readiness`

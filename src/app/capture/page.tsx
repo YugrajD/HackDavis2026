@@ -28,9 +28,15 @@ type CaptureLocation = {
 
 type CaptureStatus = "idle" | "camera-ready" | "capturing" | "saved" | "error";
 type PerceptionPreset = "rear_vehicle" | "close_pass" | "blocked_lane" | "cross_traffic" | "clear";
+type BrowserFacingMode = "environment" | "user";
 
 const demoRideId = "demo-ride-1";
 const fallbackLocation: CaptureLocation = { lat: 38.5449, lng: -121.7405 };
+const cameraFacingModes = {
+  front: "environment",
+  rear: "user",
+  dashcam: "environment",
+} as const satisfies Record<CameraRole, BrowserFacingMode>;
 
 export default function CapturePage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -39,6 +45,7 @@ export default function CapturePage() {
   const workerRef = useRef<Worker | null>(null);
   const previousFrameRef = useRef<FrameObservation | undefined>(undefined);
   const startedAtRef = useRef<number>(Date.now());
+  const cameraRequestRef = useRef(0);
 
   const [camera, setCamera] = useState<CameraRole>("front");
   const [rideMode, setRideMode] = useState<RideMode>("bike");
@@ -83,30 +90,37 @@ export default function CapturePage() {
   useEffect(() => {
     void startCamera();
     return () => stopCamera();
-  }, []);
+  }, [camera]);
 
   async function startCamera() {
+    stopCamera();
+    const requestId = cameraRequestRef.current;
+    const selectedCamera = camera;
+
     try {
-      stopCamera();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: camera === "rear" ? "user" : "environment" },
-        audio: false,
-      });
+      const stream = await getCameraStream(selectedCamera);
+      if (requestId !== cameraRequestRef.current) {
+        stopStream(stream);
+        return;
+      }
+
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
       setStatus("camera-ready");
-      setMessage("Camera ready. Capture frame when a hazard is visible.");
+      setMessage(`Camera ready on ${selectedCamera}. Capture frame when a hazard is visible.`);
     } catch (error) {
+      if (requestId !== cameraRequestRef.current) return;
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Camera permission failed.");
     }
   }
 
   function stopCamera() {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+    cameraRequestRef.current += 1;
+    stopStream(streamRef.current);
     streamRef.current = null;
   }
 
@@ -171,6 +185,7 @@ export default function CapturePage() {
     if (!videoRef.current || !canvasRef.current) return;
 
     const captureRideId = resolveRideId(activeRideId, rideId);
+    const selectedCamera = camera;
     const captureT = Math.round((Date.now() - startedAtRef.current) / 1000);
     const routePoint = buildRoutePoint({ t: captureT, location, speedMps, headingDeg });
 
@@ -181,7 +196,7 @@ export default function CapturePage() {
       const imageBase64 = captureFrame(videoRef.current, canvasRef.current);
       setLastFrame(imageBase64);
 
-      const frameObservation = buildFrameObservation(videoRef.current, { camera, location, speedMps, headingDeg, preset: perceptionPreset });
+      const frameObservation = buildFrameObservation(videoRef.current, { camera: selectedCamera, location, speedMps, headingDeg, preset: perceptionPreset });
       const [mediaUpload, perception] = await Promise.all([
         postJson<MediaUploadResponse>("/api/media/upload", { imageBase64, imageMimeType: "image/jpeg" }),
         runPerception(frameObservation),
@@ -196,7 +211,7 @@ export default function CapturePage() {
         lng: location.lng,
         speedMps,
         headingDeg,
-        camera,
+        camera: selectedCamera,
         clipUrl: mediaUpload.clipUrl,
         thumbnailUrl: mediaUpload.thumbnailUrl,
         perception,
@@ -352,6 +367,26 @@ export default function CapturePage() {
       </section>
     </main>
   );
+}
+
+async function getCameraStream(camera: CameraRole) {
+  const facingMode = cameraFacingModes[camera];
+
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { exact: facingMode } },
+      audio: false,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "OverconstrainedError") {
+      return navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: false });
+    }
+    throw error;
+  }
+}
+
+function stopStream(stream: MediaStream | null) {
+  stream?.getTracks().forEach((track) => track.stop());
 }
 
 function resolveRideId(activeRideId: string | null, fallbackRideId: string) {

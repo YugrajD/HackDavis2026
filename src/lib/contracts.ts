@@ -177,6 +177,55 @@ export type AnalyzeAndSaveMediaResponse = {
   yoloNote?: string;
 };
 
+export type ProviderStatusResponse = {
+  status: "ready" | "degraded";
+  generatedAt: string;
+  providers: {
+    mongodb: {
+      configured: boolean;
+      available: boolean;
+      mode: "mongodb" | "memory" | "memory-fallback";
+      check: "ping" | "failed-ping" | "not-configured";
+      error?: string;
+    };
+    gemini: {
+      configured: boolean;
+      available: boolean;
+      check: "configuration";
+      fallback: "stub";
+    };
+    claude: {
+      configured: boolean;
+      available: boolean;
+      check: "configuration";
+      fallback: "stub";
+    };
+    elevenLabs: {
+      configured: boolean;
+      available: boolean;
+      check: "configuration";
+      fallback: "native-tts";
+    };
+    uploadStorage: {
+      configured: boolean;
+      available: boolean;
+      writable: boolean;
+      relativePath: string;
+      check: "write-probe";
+      error?: string;
+    };
+    localFallback: {
+      configured: true;
+      available: true;
+      persistence: "memory";
+      frameAnalysis: "stub";
+      reports: "stub";
+      voice: "native-tts";
+      scenarios: "deterministic-scenario-lab";
+    };
+  };
+};
+
 export type ReadinessResponse = {
   status: "ready" | "degraded";
   generatedAt: string;
