@@ -47,3 +47,19 @@ export type MediaUploadResponse = {
   stored: Array<{ kind: string; url: string; bytes: number; contentType: string }>;
   persisted: string;
 };
+
+export type ProviderStatusResponse = {
+  status: "ready" | "degraded";
+  generatedAt: string;
+  providers: {
+    gemini: { configured: boolean; available: boolean; fallback: "stub" };
+    elevenLabs: { configured: boolean; available: boolean; fallback: "native-tts" };
+    yolo: {
+      configured: boolean;
+      available: boolean;
+      check: "health" | "failed-health" | "not-configured";
+      serviceHost?: string;
+      error?: string;
+    };
+  };
+};

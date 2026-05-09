@@ -5,7 +5,7 @@ import * as Location from "expo-location";
 import Constants from "expo-constants";
 import { Audio } from "expo-av";
 import * as Speech from "expo-speech";
-import type { AppendRideRouteResponse, CreateRideResponse, EndRideResponse, MediaUploadResponse, Ride } from "./types";
+import type { AppendRideRouteResponse, CreateRideResponse, EndRideResponse, MediaUploadResponse, ProviderStatusResponse, Ride } from "./types";
 
 type AnalyzeResponse = {
   event: {
@@ -40,6 +40,13 @@ type RideStart = {
   note?: string;
 };
 
+type PreflightState = {
+  loading: boolean;
+  checkedAt?: string;
+  payload?: ProviderStatusResponse;
+  error?: string;
+};
+
 const DEMO_RIDE_ID = "demo-ride-1";
 const DEMO_ORIGIN = { lat: 38.5449, lng: -121.7405 };
 const CAPTURE_IMAGE_QUALITY = 0.55;
@@ -47,6 +54,14 @@ const CAPTURE_IMAGE_QUALITY = 0.55;
 function apiBase(): string {
   const fromExtra = Constants.expoConfig?.extra?.apiBaseUrl as string | undefined;
   return (fromExtra ?? "http://127.0.0.1:3000").replace(/\/$/, "");
+}
+
+async function getJson<T>(path: string): Promise<T> {
+  const url = `${apiBase()}${path}`;
+  const response = await fetch(url);
+  const payload = (await response.json()) as T & { error?: string };
+  if (!response.ok) throw new Error(payload.error ?? `${path} ${response.status}`);
+  return payload;
 }
 
 async function requestJson<T>(path: string, init: { method: "POST" | "PATCH"; body?: unknown }): Promise<T> {
@@ -79,6 +94,28 @@ function secondsSince(startedAt: string, nowMs = Date.now()): number {
   return Math.max(0, Math.round((nowMs - startMs) / 100) / 10);
 }
 
+function preflightTime(): string {
+  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function providerTone(configured: boolean, available: boolean): "ok" | "warn" | "bad" {
+  if (!configured) return "warn";
+  return available ? "ok" : "bad";
+}
+
+function renderProviderChip(label: string, configured: boolean, available: boolean, fallbackLabel = "not set") {
+  const tone = providerTone(configured, available);
+  const value = configured ? (available ? "ready" : "down") : fallbackLabel;
+  const toneStyle = tone === "ok" ? styles.chipOk : tone === "warn" ? styles.chipWarn : styles.chipBad;
+
+  return (
+    <View key={label} style={[styles.chip, toneStyle]}>
+      <Text style={styles.chipLabel}>{label}</Text>
+      <Text style={styles.chipValue}>{value}</Text>
+    </View>
+  );
+}
+
 export default function CaptureScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [locPermission, setLocPermission] = useState<boolean | null>(null);
@@ -87,6 +124,23 @@ export default function CaptureScreen() {
   const [status, setStatus] = useState("");
   const [last, setLast] = useState<AnalyzeResponse | null>(null);
   const [activeRide, setActiveRide] = useState<ActiveRide | null>(null);
+  const [preflight, setPreflight] = useState<PreflightState>({ loading: true });
+
+  const runPreflight = useCallback(async (): Promise<boolean> => {
+    setPreflight((current) => ({ ...current, loading: true, error: undefined }));
+    try {
+      const payload = await getJson<ProviderStatusResponse>("/api/providers/status");
+      setPreflight({ loading: false, payload, checkedAt: preflightTime() });
+      return true;
+    } catch (error) {
+      setPreflight({ loading: false, error: error instanceof Error ? error.message : "Backend preflight failed" });
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    void runPreflight();
+  }, [runPreflight]);
 
   useEffect(() => {
     void (async () => {
@@ -179,6 +233,10 @@ export default function CaptureScreen() {
     setLast(null);
 
     try {
+      setStatus("Checking backend…");
+      const backendReachable = await runPreflight();
+      if (!backendReachable) throw new Error("Backend is not reachable. Check API base URL and Wi‑Fi.");
+
       const telemetry = await readTelemetry();
       const started = await ensureRide(telemetry);
       const ride = started.ride;
@@ -238,7 +296,7 @@ export default function CaptureScreen() {
     } finally {
       setBusy(false);
     }
-  }, [cameraRef, ensureRide, readTelemetry]);
+  }, [cameraRef, ensureRide, readTelemetry, runPreflight]);
 
   if (!permission) {
     return (
@@ -268,6 +326,32 @@ export default function CaptureScreen() {
         Set EXPO_PUBLIC_API_BASE_URL to your laptop LAN IP (same Wi‑Fi as this phone). Run Next.js, YOLO sidecar, and set
         YOLO_SERVICE_URL on the server.
       </Text>
+
+      <View style={styles.preflightPanel}>
+        <View style={styles.preflightHeader}>
+          <Text style={styles.preflightTitle}>Backend preflight</Text>
+          <Pressable onPress={() => void runPreflight()} disabled={preflight.loading || busy}>
+            <Text style={[styles.refreshText, (preflight.loading || busy) && styles.refreshDisabled]}>{preflight.loading ? "checking" : "refresh"}</Text>
+          </Pressable>
+        </View>
+        {preflight.payload ? (
+          <>
+            <Text style={styles.preflightLine}>
+              Backend reachable · {preflight.payload.status}
+              {preflight.checkedAt ? ` · ${preflight.checkedAt}` : ""}
+            </Text>
+            <View style={styles.chipRow}>
+              {renderProviderChip("YOLO", preflight.payload.providers.yolo.configured, preflight.payload.providers.yolo.available)}
+              {renderProviderChip("Gemini", preflight.payload.providers.gemini.configured, preflight.payload.providers.gemini.available, "stub")}
+              {renderProviderChip("Voice", preflight.payload.providers.elevenLabs.configured, preflight.payload.providers.elevenLabs.available, "native")}
+            </View>
+          </>
+        ) : (
+          <Text style={[styles.preflightLine, styles.preflightError]}>
+            {preflight.loading ? "Checking API…" : `Backend unreachable: ${preflight.error ?? "not checked"}`}
+          </Text>
+        )}
+      </View>
 
       <View style={styles.ridePanel}>
         <Text style={styles.rideLabel}>Ride</Text>
@@ -317,6 +401,27 @@ const styles = StyleSheet.create({
   tag: { fontFamily: "monospace", fontSize: 11, letterSpacing: 3, color: "#22d3ee", marginBottom: 8 },
   title: { fontSize: 26, fontWeight: "600", color: "#f8fafc", marginBottom: 8 },
   caption: { fontSize: 13, color: "#94a3b8", marginBottom: 8, lineHeight: 20 },
+  preflightPanel: {
+    marginTop: 8,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: "rgba(15,23,42,0.78)",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.18)",
+  },
+  preflightHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+  preflightTitle: { fontFamily: "monospace", fontSize: 11, letterSpacing: 2, color: "#e2e8f0", textTransform: "uppercase" },
+  refreshText: { fontFamily: "monospace", fontSize: 11, color: "#67e8f9", textTransform: "uppercase" },
+  refreshDisabled: { opacity: 0.45 },
+  preflightLine: { color: "#cbd5e1", fontSize: 12, marginBottom: 8 },
+  preflightError: { color: "#f87171", marginBottom: 0 },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999, borderWidth: 1, flexDirection: "row", gap: 6 },
+  chipOk: { backgroundColor: "rgba(34,197,94,0.12)", borderColor: "rgba(34,197,94,0.42)" },
+  chipWarn: { backgroundColor: "rgba(251,191,36,0.12)", borderColor: "rgba(251,191,36,0.42)" },
+  chipBad: { backgroundColor: "rgba(248,113,113,0.12)", borderColor: "rgba(248,113,113,0.48)" },
+  chipLabel: { fontFamily: "monospace", fontSize: 11, color: "#94a3b8", textTransform: "uppercase" },
+  chipValue: { fontFamily: "monospace", fontSize: 11, color: "#f8fafc", textTransform: "uppercase" },
   ridePanel: {
     marginTop: 8,
     padding: 14,
