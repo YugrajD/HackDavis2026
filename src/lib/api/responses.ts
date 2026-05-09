@@ -26,6 +26,10 @@ export async function readJsonBody<T>(request: Request, options: { allowEmpty?: 
   }
 
   const raw = await request.text();
+  if (options.maxBytes && new TextEncoder().encode(raw).byteLength > options.maxBytes) {
+    throw new ApiError(413, `JSON body exceeds ${Math.round(options.maxBytes / 1024)}KB limit.`);
+  }
+
   if (!raw.trim()) {
     if (options.allowEmpty) return {} as T;
     throw new ApiError(400, "Request body must be valid JSON.");

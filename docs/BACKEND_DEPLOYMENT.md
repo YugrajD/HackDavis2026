@@ -52,3 +52,4 @@ Real values belong only in `.env.local` or the deployment provider's secret stor
 - Thumbnails: JPEG, PNG, or WebP, max 4MB.
 - Clips: WebM, MP4, or QuickTime, max 12MB.
 - One thumbnail and one clip are accepted per request.
+- `/api/perception/detect` and `/api/media/analyze-and-save` accept one base64 image up to the same 4MB decoded thumbnail limit, with JSON/body allowance for base64 overhead.

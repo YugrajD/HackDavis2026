@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getImageJsonBodyLimitBytes, sanitizeImageBase64 } from "@/lib/api/media-payload";
 import { readJsonBody, handleApiError } from "@/lib/api/responses";
 import { getYoloServiceUrl } from "@/lib/config/server";
 import { fetchYoloDetectionsFromService } from "@/lib/perception/yolo-client";
@@ -10,7 +11,11 @@ type DetectRequestBody = {
 
 export async function POST(request: Request) {
   try {
-    const body = await readJsonBody<DetectRequestBody>(request, { maxBytes: 1024 * 1024 });
+    const body = await readJsonBody<DetectRequestBody>(request, { maxBytes: getImageJsonBodyLimitBytes() });
+    const imageBase64 = sanitizeImageBase64(body.imageBase64, {
+      required: true,
+      declaredMimeType: body.imageMimeType,
+    });
 
     if (!getYoloServiceUrl()) {
       return NextResponse.json(
@@ -22,11 +27,6 @@ export async function POST(request: Request) {
         },
         { status: 503 },
       );
-    }
-
-    const imageBase64 = typeof body.imageBase64 === "string" ? body.imageBase64 : undefined;
-    if (!imageBase64?.trim()) {
-      return NextResponse.json({ error: "imageBase64 is required." }, { status: 400 });
     }
 
     const result = await fetchYoloDetectionsFromService(imageBase64);

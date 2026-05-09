@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getImageJsonBodyLimitBytes, sanitizeImageBase64 } from "@/lib/api/media-payload";
 import { sanitizePerceptionResult } from "@/lib/api/perception-input";
 import { readJsonBody, handleApiError } from "@/lib/api/responses";
 import { cameraRoles, isFiniteNumber, isLatitude, isLongitude, safeIdentifier, safeMediaUrl } from "@/lib/api/validation";
@@ -6,7 +7,7 @@ import { analyzeAndPersistMedia, type AnalyzeAndPersistMediaInput } from "@/lib/
 
 export async function POST(request: Request) {
   try {
-    const body = await readJsonBody<AnalyzeAndPersistMediaInput>(request, { maxBytes: 1024 * 1024 });
+    const body = await readJsonBody<AnalyzeAndPersistMediaInput>(request, { maxBytes: getImageJsonBodyLimitBytes() });
     const result = await analyzeAndPersistMedia(sanitizeAnalyzeAndPersistInput(body));
 
     return NextResponse.json(
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
 
 function sanitizeAnalyzeAndPersistInput(input: AnalyzeAndPersistMediaInput): AnalyzeAndPersistMediaInput {
   return {
-    imageBase64: typeof input.imageBase64 === "string" ? input.imageBase64 : undefined,
+    imageBase64: sanitizeImageBase64(input.imageBase64),
     rideId: safeIdentifier(input.rideId),
     t: isFiniteNumber(input.t) && input.t >= 0 ? input.t : undefined,
     lat: isLatitude(input.lat) ? input.lat : undefined,
