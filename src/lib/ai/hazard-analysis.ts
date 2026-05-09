@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI, SchemaType, type ResponseSchema } from "@google/generative-ai";
 import type { ActorType, CameraRole, HazardEvent, HazardType, PerceptionResult, TrackedObject } from "@/lib/contracts";
+import { getSponsorConfig } from "@/lib/config/server";
 
 export type AnalyzeFrameInput = {
   imageBase64?: string;
@@ -104,13 +105,13 @@ export function analyzeFrameStub(input: AnalyzeFrameInput): AnalyzeFrameOutput {
 }
 
 export async function analyzeFrameWithGemini(input: AnalyzeFrameInput): Promise<AnalyzeFrameOutput | null> {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const { gemini } = getSponsorConfig();
   const image = parseImage(input.imageBase64);
-  if (!apiKey || !image) return null;
+  if (!gemini.apiKey || !image) return null;
 
-  const genAI = new GoogleGenerativeAI(apiKey);
+  const genAI = new GoogleGenerativeAI(gemini.apiKey);
   const model = genAI.getGenerativeModel({
-    model: process.env.GEMINI_MODEL?.trim() || "gemini-1.5-flash",
+    model: gemini.model,
     generationConfig: {
       responseMimeType: "application/json",
       responseSchema: hazardSchema,

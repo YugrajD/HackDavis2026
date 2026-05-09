@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { DangerSegment, HazardEvent } from "@/lib/contracts";
 import { handleApiError, jsonError, readJsonBody } from "@/lib/api/responses";
 import { generateSafetyReport, generateSafetyReportWithClaude } from "@/lib/ai/report";
+import { getSponsorConfig } from "@/lib/config/server";
 import { listDangerSegments, listEvents } from "@/lib/db/repository";
 import { resolveDangerSegment } from "@/lib/geo/danger-segments";
 
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
     const relatedEvents = eventPool.filter((event) => segment.topTypes.includes(event.type));
     const eventsForReport = relatedEvents.length ? relatedEvents : eventPool;
 
-    if (process.env.ANTHROPIC_API_KEY) {
+    if (getSponsorConfig().anthropic.apiKey) {
       try {
         const report = await generateSafetyReportWithClaude(segment, eventsForReport);
         if (report) return NextResponse.json({ report, provider: "claude" });

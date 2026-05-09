@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { DangerSegment, HazardEvent, SafetyReport } from "@/lib/contracts";
+import { getSponsorConfig } from "@/lib/config/server";
 
 export function generateSafetyReport(segment: DangerSegment, events: HazardEvent[]): SafetyReport {
   const topType = segment.topTypes[0]?.replaceAll("_", " ") ?? "road hazard";
@@ -22,12 +23,12 @@ export function generateSafetyReport(segment: DangerSegment, events: HazardEvent
 }
 
 export async function generateSafetyReportWithClaude(segment: DangerSegment, events: HazardEvent[]): Promise<SafetyReport | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
-  if (!apiKey) return null;
+  const { anthropic: anthropicConfig } = getSponsorConfig();
+  if (!anthropicConfig.apiKey) return null;
 
-  const anthropic = new Anthropic({ apiKey });
+  const anthropic = new Anthropic({ apiKey: anthropicConfig.apiKey });
   const message = await anthropic.messages.create({
-    model: process.env.ANTHROPIC_MODEL?.trim() || "claude-3-5-sonnet-latest",
+    model: anthropicConfig.model,
     max_tokens: 900,
     temperature: 0.2,
     system:

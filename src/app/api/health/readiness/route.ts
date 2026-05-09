@@ -1,19 +1,19 @@
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
+import { getServerConfig, type SponsorConfig, type StorageConfig } from "@/lib/config/server";
 import type { ReadinessResponse } from "@/lib/contracts";
 import { getMongoDb, isMongoConfigured } from "@/lib/db/mongo";
 import { listDangerSegments, listEvents, listRides } from "@/lib/db/repository";
 
 export const runtime = "nodejs";
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "generated", "uploads");
-const UPLOAD_DIR_RELATIVE = "public/generated/uploads";
 const DEMO_RIDE_ID = "demo-ride-1";
 
 export async function GET() {
+  const config = getServerConfig();
   const mongo = await checkMongo();
-  const [uploads, data] = await Promise.all([checkUploads(), countSeededData(mongo.connected)]);
+  const [uploads, data] = await Promise.all([checkUploads(config.storage.media), countSeededData(mongo.connected)]);
 
   const ready = uploads.writable && (!mongo.configured || mongo.connected);
   const response: ReadinessResponse = {
@@ -21,9 +21,9 @@ export async function GET() {
     generatedAt: new Date().toISOString(),
     integrations: {
       mongo,
-      gemini: envPresence("GEMINI_API_KEY"),
-      anthropic: envPresence("ANTHROPIC_API_KEY"),
-      elevenLabs: envPresence("ELEVENLABS_API_KEY"),
+      gemini: sponsorPresence(config.sponsors.gemini),
+      anthropic: sponsorPresence(config.sponsors.anthropic),
+      elevenLabs: sponsorPresence(config.sponsors.elevenLabs),
       uploads,
     },
     data,
@@ -51,19 +51,20 @@ async function checkMongo(): Promise<ReadinessResponse["integrations"]["mongo"]>
   }
 }
 
-async function checkUploads(): Promise<ReadinessResponse["integrations"]["uploads"]> {
-  const probePath = path.join(UPLOAD_DIR, `.readiness-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+async function checkUploads(media: StorageConfig["media"]): Promise<ReadinessResponse["integrations"]["uploads"]> {
+  const probePath = path.join(media.uploadRoot, `.readiness-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const relativePath = media.publicPrefix.replace(/^\//, "public/");
 
   try {
-    await mkdir(UPLOAD_DIR, { recursive: true });
+    await mkdir(media.uploadRoot, { recursive: true });
     await writeFile(probePath, "ok", { flag: "wx" });
     await unlink(probePath);
-    return { configured: true, writable: true, relativePath: UPLOAD_DIR_RELATIVE };
+    return { configured: true, writable: true, relativePath };
   } catch (error) {
     return {
       configured: true,
       writable: false,
-      relativePath: UPLOAD_DIR_RELATIVE,
+      relativePath,
       error: error instanceof Error ? error.name : "UploadWriteError",
     };
   }
@@ -86,6 +87,6 @@ async function countSeededData(mongoConnected: boolean): Promise<ReadinessRespon
   };
 }
 
-function envPresence(name: "GEMINI_API_KEY" | "ANTHROPIC_API_KEY" | "ELEVENLABS_API_KEY") {
-  return { configured: Boolean(process.env[name]?.trim()) };
+function sponsorPresence(config: SponsorConfig[keyof SponsorConfig]) {
+  return { configured: Boolean(config.apiKey) };
 }

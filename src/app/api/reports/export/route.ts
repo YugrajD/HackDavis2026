@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { DangerSegment, HazardEvent, ReportExportFormat } from "@/lib/contracts";
 import { handleApiError, jsonError, readJsonBody } from "@/lib/api/responses";
 import { generateSafetyReport, generateSafetyReportWithClaude } from "@/lib/ai/report";
+import { getSponsorConfig } from "@/lib/config/server";
 import { listDangerSegments, listEvents } from "@/lib/db/repository";
 import { resolveDangerSegment } from "@/lib/geo/danger-segments";
 import { buildReportExportPayload, type ExportFormat } from "@/lib/reports/export";
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     const eventPool = Array.isArray(body.events) ? body.events.slice(0, 100) : await listEvents();
     const relatedEvents = eventPool.filter((event) => segment.topTypes.includes(event.type));
     const eventsForReport = relatedEvents.length ? relatedEvents : eventPool;
-    const claudeReport = process.env.ANTHROPIC_API_KEY ? await generateSafetyReportWithClaude(segment, eventsForReport).catch(() => null) : null;
+    const claudeReport = getSponsorConfig().anthropic.apiKey ? await generateSafetyReportWithClaude(segment, eventsForReport).catch(() => null) : null;
     const report = claudeReport ?? generateSafetyReport(segment, eventsForReport);
     const exportPayload = buildReportExportPayload(format, report, segment, eventsForReport);
 

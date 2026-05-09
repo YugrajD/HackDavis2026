@@ -3,13 +3,16 @@ import { readJsonBody, handleApiError } from "@/lib/api/responses";
 import { sanitizePerceptionResult } from "@/lib/api/perception-input";
 import { cameraRoles, isFiniteNumber, isLatitude, isLongitude } from "@/lib/api/validation";
 import { analyzeFrameStub, analyzeFrameWithGemini, type AnalyzeFrameInput } from "@/lib/ai/hazard-analysis";
+import { getSponsorConfig } from "@/lib/config/server";
 
 export async function POST(request: Request) {
   try {
     const body = await readJsonBody<AnalyzeFrameInput>(request, { maxBytes: 1024 * 1024 });
     const input = sanitizeAnalyzeFrameInput(body);
 
-    if (process.env.GEMINI_API_KEY) {
+    const { gemini } = getSponsorConfig();
+
+    if (gemini.apiKey) {
       try {
         const analysis = await analyzeFrameWithGemini(input);
         if (analysis) return NextResponse.json({ ...analysis, provider: "gemini", perception: input.perception });
@@ -26,7 +29,7 @@ export async function POST(request: Request) {
       perception: input.perception,
       note: provider === "perception"
         ? "Local perception worker supplied the tracking and risk payload. Set GEMINI_API_KEY to cross-check it with image analysis."
-        : process.env.GEMINI_API_KEY
+        : gemini.apiKey
           ? "Gemini was configured but unavailable, so the deterministic fallback returned this shape."
           : "Set GEMINI_API_KEY to enable Gemini frame analysis without changing the response shape.",
     });

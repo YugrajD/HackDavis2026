@@ -1,7 +1,5 @@
 import { MongoClient, type Db } from "mongodb";
-
-const uri = process.env.MONGODB_URI;
-const dbName = process.env.MONGODB_DB || "guardian-road";
+import { getStorageConfig } from "@/lib/config/server";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -9,19 +7,20 @@ declare global {
 }
 
 export function isMongoConfigured() {
-  return Boolean(uri);
+  return Boolean(getStorageConfig().mongo.uri);
 }
 
 export async function getMongoDb(): Promise<Db | null> {
-  if (!uri) return null;
+  const { mongo } = getStorageConfig();
+  if (!mongo.uri) return null;
 
   if (!globalThis.guardianRoadMongoClientPromise) {
-    const client = new MongoClient(uri);
+    const client = new MongoClient(mongo.uri);
     globalThis.guardianRoadMongoClientPromise = client.connect();
   }
 
   const client = await globalThis.guardianRoadMongoClientPromise;
-  const db = client.db(dbName);
+  const db = client.db(mongo.dbName);
   await ensureIndexes(db);
   return db;
 }

@@ -1,5 +1,6 @@
 import type { CameraRole, HazardEvent, PerceptionResult } from "@/lib/contracts";
 import { analyzeFrameStub, analyzeFrameWithGemini } from "@/lib/ai/hazard-analysis";
+import { getSponsorConfig } from "@/lib/config/server";
 import { createEvent, type PersistenceMode } from "@/lib/db/repository";
 
 export type AnalyzeAndPersistMediaInput = {
@@ -24,7 +25,7 @@ export type AnalyzeAndPersistMediaOutput = {
 };
 
 export async function analyzeAndPersistMedia(input: AnalyzeAndPersistMediaInput): Promise<AnalyzeAndPersistMediaOutput> {
-  const provider = process.env.GEMINI_API_KEY ? "gemini" : "stub";
+  const provider = getSponsorConfig().gemini.apiKey ? "gemini" : "stub";
   let analysis = provider === "gemini" ? await analyzeFrameWithGemini(input).catch(() => null) : null;
   let resolvedProvider: AnalyzeAndPersistMediaOutput["provider"] = provider;
 

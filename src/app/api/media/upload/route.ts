@@ -3,15 +3,17 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { ApiError, handleApiError, jsonError, readJsonBody } from "@/lib/api/responses";
+import { getStorageConfig } from "@/lib/config/server";
 import type { MediaUploadResponse, UploadedMedia } from "@/lib/contracts";
 
 export const runtime = "nodejs";
 
-const MAX_THUMBNAIL_BYTES = 4 * 1024 * 1024;
-const MAX_CLIP_BYTES = 12 * 1024 * 1024;
-const MAX_REQUEST_BYTES = MAX_THUMBNAIL_BYTES + MAX_CLIP_BYTES + 1024 * 1024;
-const UPLOAD_ROOT = path.join(process.cwd(), "public", "generated", "uploads");
-const PUBLIC_PREFIX = "/generated/uploads";
+const { media } = getStorageConfig();
+const MAX_THUMBNAIL_BYTES = media.limits.thumbnailBytes;
+const MAX_CLIP_BYTES = media.limits.clipBytes;
+const MAX_REQUEST_BYTES = media.limits.requestBytes;
+const UPLOAD_ROOT = media.uploadRoot;
+const PUBLIC_PREFIX = media.publicPrefix;
 
 type MediaKind = UploadedMedia["kind"];
 
