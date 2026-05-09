@@ -1,0 +1,347 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 63;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0BD844B7BC5D73B5321F6221 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B7D94C066E4079E6362576 /* CameraManager.swift */; };
+		241FB836EEA296E28DC714C7 /* DashcamViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE3BA4A77142818EF8EA4CC2 /* DashcamViewModel.swift */; };
+		67BF890F7C658B897E4904AC /* KeywordDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD2E749BADB8D467D151157B /* KeywordDetector.swift */; };
+		67D4949A72BCE1A046E08BED /* CameraPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A02DCC34E74D68159425139 /* CameraPreview.swift */; };
+		876C52FD3BBA91FF706975DC /* RollingRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4BEAC602D6251B8FB644368 /* RollingRecorder.swift */; };
+		E37A2E3FEDDD06873347E88D /* GuardianRoadApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9CF94C937C4F885A1F8ED7B /* GuardianRoadApp.swift */; };
+		E61898F4B58168F4A6E76C48 /* DashcamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 268023144BA2D8310C058D16 /* DashcamView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		06B7D94C066E4079E6362576 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
+		268023144BA2D8310C058D16 /* DashcamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashcamView.swift; sourceTree = "<group>"; };
+		9A02DCC34E74D68159425139 /* CameraPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreview.swift; sourceTree = "<group>"; };
+		AE3BA4A77142818EF8EA4CC2 /* DashcamViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashcamViewModel.swift; sourceTree = "<group>"; };
+		AF898056127126DF11747B9D /* GuardianRoad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GuardianRoad.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BF36F57B3D215B4FEB455AFA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		D9CF94C937C4F885A1F8ED7B /* GuardianRoadApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuardianRoadApp.swift; sourceTree = "<group>"; };
+		DD2E749BADB8D467D151157B /* KeywordDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeywordDetector.swift; sourceTree = "<group>"; };
+		E4BEAC602D6251B8FB644368 /* RollingRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RollingRecorder.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		72FC06E596E49A6844EBDCF6 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				742C9E12A4ABE294FF5F0611 /* Camera */,
+				C56A93BD654FA96A44344889 /* Voice */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		742C9E12A4ABE294FF5F0611 /* Camera */ = {
+			isa = PBXGroup;
+			children = (
+				06B7D94C066E4079E6362576 /* CameraManager.swift */,
+				E4BEAC602D6251B8FB644368 /* RollingRecorder.swift */,
+			);
+			path = Camera;
+			sourceTree = "<group>";
+		};
+		9A92084D9B9AF5600E7EF2FB /* GuardianRoad */ = {
+			isa = PBXGroup;
+			children = (
+				D9CF94C937C4F885A1F8ED7B /* GuardianRoadApp.swift */,
+				BF36F57B3D215B4FEB455AFA /* Info.plist */,
+				72FC06E596E49A6844EBDCF6 /* Core */,
+				AFBAC5D53C86F3F36952CA58 /* UI */,
+			);
+			path = GuardianRoad;
+			sourceTree = "<group>";
+		};
+		AFBAC5D53C86F3F36952CA58 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				9A02DCC34E74D68159425139 /* CameraPreview.swift */,
+				268023144BA2D8310C058D16 /* DashcamView.swift */,
+				AE3BA4A77142818EF8EA4CC2 /* DashcamViewModel.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		C56A93BD654FA96A44344889 /* Voice */ = {
+			isa = PBXGroup;
+			children = (
+				DD2E749BADB8D467D151157B /* KeywordDetector.swift */,
+			);
+			path = Voice;
+			sourceTree = "<group>";
+		};
+		D5F651F288C04D0594F629EB = {
+			isa = PBXGroup;
+			children = (
+				9A92084D9B9AF5600E7EF2FB /* GuardianRoad */,
+				F78FFB40F39B518588274468 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		F78FFB40F39B518588274468 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AF898056127126DF11747B9D /* GuardianRoad.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		73FE6444006B0D77FC076271 /* GuardianRoad */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0F2B87679D0C16EE32ADB821 /* Build configuration list for PBXNativeTarget "GuardianRoad" */;
+			buildPhases = (
+				06DA5966381ED6AE1FB1FABC /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GuardianRoad;
+			packageProductDependencies = (
+			);
+			productName = GuardianRoad;
+			productReference = AF898056127126DF11747B9D /* GuardianRoad.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		EB2AC50AFC5C95E877F02DE0 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+			};
+			buildConfigurationList = 881351E7FC047470F76F5A03 /* Build configuration list for PBXProject "GuardianRoad" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = D5F651F288C04D0594F629EB;
+			minimizedProjectReferenceProxies = 1;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				73FE6444006B0D77FC076271 /* GuardianRoad */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		06DA5966381ED6AE1FB1FABC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0BD844B7BC5D73B5321F6221 /* CameraManager.swift in Sources */,
+				67D4949A72BCE1A046E08BED /* CameraPreview.swift in Sources */,
+				E61898F4B58168F4A6E76C48 /* DashcamView.swift in Sources */,
+				241FB836EEA296E28DC714C7 /* DashcamViewModel.swift in Sources */,
+				E37A2E3FEDDD06873347E88D /* GuardianRoadApp.swift in Sources */,
+				67BF890F7C658B897E4904AC /* KeywordDetector.swift in Sources */,
+				876C52FD3BBA91FF706975DC /* RollingRecorder.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		12B36BB520A6942D85AFD4A2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 99B72Z9R5D;
+				INFOPLIST_FILE = GuardianRoad/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.guardianroad.app;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		997BF8D87A37E589318B3B69 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		B12A802FEB2BEF9423066AD9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		CA71D03ECCEC266C96265B36 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 99B72Z9R5D;
+				INFOPLIST_FILE = GuardianRoad/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.guardianroad.app;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0F2B87679D0C16EE32ADB821 /* Build configuration list for PBXNativeTarget "GuardianRoad" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				12B36BB520A6942D85AFD4A2 /* Debug */,
+				CA71D03ECCEC266C96265B36 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		881351E7FC047470F76F5A03 /* Build configuration list for PBXProject "GuardianRoad" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				997BF8D87A37E589318B3B69 /* Debug */,
+				B12A802FEB2BEF9423066AD9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = EB2AC50AFC5C95E877F02DE0 /* Project object */;
+}
