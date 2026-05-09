@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "smoke:api": "node scripts/smoke-api-arc.mjs",
     "scenarios:generate": "node scripts/generate-road-scenarios.mjs"
   },
   "dependencies": {
