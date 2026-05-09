@@ -72,7 +72,6 @@ struct DashcamView: View {
 
     private var bottomBar: some View {
         HStack(alignment: .center, spacing: 16) {
-            micStatus
             Spacer()
             locationBadge
             saveButton
@@ -80,17 +79,6 @@ struct DashcamView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .background(.black.opacity(0.6))
-    }
-
-    private var micStatus: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(vm.keyword.isListening ? Color.green : Color.orange)
-                .frame(width: 8, height: 8)
-            Text(vm.keyword.isListening ? "Listening" : "Mic off")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white.opacity(0.8))
-        }
     }
 
     private var locationBadge: some View {

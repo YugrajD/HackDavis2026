@@ -3,13 +3,12 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		0BD844B7BC5D73B5321F6221 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B7D94C066E4079E6362576 /* CameraManager.swift */; };
 		241FB836EEA296E28DC714C7 /* DashcamViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE3BA4A77142818EF8EA4CC2 /* DashcamViewModel.swift */; };
-		67BF890F7C658B897E4904AC /* KeywordDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD2E749BADB8D467D151157B /* KeywordDetector.swift */; };
 		67D4949A72BCE1A046E08BED /* CameraPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A02DCC34E74D68159425139 /* CameraPreview.swift */; };
 		876C52FD3BBA91FF706975DC /* RollingRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4BEAC602D6251B8FB644368 /* RollingRecorder.swift */; };
 		E37A2E3FEDDD06873347E88D /* GuardianRoadApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9CF94C937C4F885A1F8ED7B /* GuardianRoadApp.swift */; };
@@ -21,10 +20,9 @@
 		268023144BA2D8310C058D16 /* DashcamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashcamView.swift; sourceTree = "<group>"; };
 		9A02DCC34E74D68159425139 /* CameraPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreview.swift; sourceTree = "<group>"; };
 		AE3BA4A77142818EF8EA4CC2 /* DashcamViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashcamViewModel.swift; sourceTree = "<group>"; };
-		AF898056127126DF11747B9D /* GuardianRoad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GuardianRoad.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AF898056127126DF11747B9D /* GuardianRoad.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = GuardianRoad.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BF36F57B3D215B4FEB455AFA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D9CF94C937C4F885A1F8ED7B /* GuardianRoadApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuardianRoadApp.swift; sourceTree = "<group>"; };
-		DD2E749BADB8D467D151157B /* KeywordDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeywordDetector.swift; sourceTree = "<group>"; };
 		E4BEAC602D6251B8FB644368 /* RollingRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RollingRecorder.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -33,7 +31,6 @@
 			isa = PBXGroup;
 			children = (
 				742C9E12A4ABE294FF5F0611 /* Camera */,
-				C56A93BD654FA96A44344889 /* Voice */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -66,14 +63,6 @@
 				AE3BA4A77142818EF8EA4CC2 /* DashcamViewModel.swift */,
 			);
 			path = UI;
-			sourceTree = "<group>";
-		};
-		C56A93BD654FA96A44344889 /* Voice */ = {
-			isa = PBXGroup;
-			children = (
-				DD2E749BADB8D467D151157B /* KeywordDetector.swift */,
-			);
-			path = Voice;
 			sourceTree = "<group>";
 		};
 		D5F651F288C04D0594F629EB = {
@@ -120,6 +109,11 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					73FE6444006B0D77FC076271 = {
+						DevelopmentTeam = "";
+					};
+				};
 			};
 			buildConfigurationList = 881351E7FC047470F76F5A03 /* Build configuration list for PBXProject "GuardianRoad" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -131,6 +125,7 @@
 			);
 			mainGroup = D5F651F288C04D0594F629EB;
 			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -149,7 +144,6 @@
 				E61898F4B58168F4A6E76C48 /* DashcamView.swift in Sources */,
 				241FB836EEA296E28DC714C7 /* DashcamViewModel.swift in Sources */,
 				E37A2E3FEDDD06873347E88D /* GuardianRoadApp.swift in Sources */,
-				67BF890F7C658B897E4904AC /* KeywordDetector.swift in Sources */,
 				876C52FD3BBA91FF706975DC /* RollingRecorder.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -163,7 +157,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 99B72Z9R5D;
 				INFOPLIST_FILE = GuardianRoad/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -306,7 +299,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 99B72Z9R5D;
 				INFOPLIST_FILE = GuardianRoad/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
