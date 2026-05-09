@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { DangerSegment, HazardEvent } from "@/lib/contracts";
-import { generateSafetyReport } from "@/lib/ai/report";
+import { generateSafetyReport, generateSafetyReportWithClaude } from "@/lib/ai/report";
 import { listDangerSegments, listEvents } from "@/lib/db/repository";
 
 export async function POST(request: Request) {
@@ -25,7 +25,17 @@ export async function POST(request: Request) {
 
   const eventPool = body.events ?? (await listEvents());
   const relatedEvents = eventPool.filter((event) => segment.topTypes.includes(event.type));
-  const report = generateSafetyReport(segment, relatedEvents.length ? relatedEvents : eventPool);
+  const eventsForReport = relatedEvents.length ? relatedEvents : eventPool;
 
-  return NextResponse.json({ report, provider: process.env.ANTHROPIC_API_KEY ? "stub-claude-ready" : "stub" });
+  if (process.env.ANTHROPIC_API_KEY) {
+    try {
+      const report = await generateSafetyReportWithClaude(segment, eventsForReport);
+      if (report) return NextResponse.json({ report, provider: "claude" });
+    } catch (error) {
+      console.error("Claude safety report generation failed; falling back to deterministic report.", error);
+    }
+  }
+
+  const report = generateSafetyReport(segment, eventsForReport);
+  return NextResponse.json({ report, provider: "stub" });
 }
