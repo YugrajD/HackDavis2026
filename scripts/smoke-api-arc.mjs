@@ -39,6 +39,7 @@ async function main() {
     assert(typeof body.integrations?.gemini?.configured === "boolean", "readiness reports Gemini key presence");
     assert(typeof body.integrations?.anthropic?.configured === "boolean", "readiness reports Anthropic key presence");
     assert(typeof body.integrations?.elevenLabs?.configured === "boolean", "readiness reports ElevenLabs key presence");
+    assertYoloStatus(body.integrations?.yolo, "readiness");
     assert(typeof body.integrations?.uploads?.writable === "boolean", "readiness reports upload writability");
     assert(Number.isInteger(body.data?.events) && body.data.events >= seed.eventCount, "readiness reports seeded event count");
     if (ownsServer) assert(body.status === "ready" && body.integrations.uploads.writable, "owned smoke server is ready");
@@ -53,6 +54,7 @@ async function main() {
     assert(typeof body.providers?.gemini?.configured === "boolean", "provider status reports Gemini configuration state");
     assert(typeof body.providers?.claude?.available === "boolean", "provider status reports Claude availability");
     assert(typeof body.providers?.elevenLabs?.configured === "boolean", "provider status reports ElevenLabs configuration state");
+    assertYoloStatus(body.providers?.yolo, "provider status");
     assert(body.providers?.uploadStorage?.available === body.providers?.uploadStorage?.writable, "provider status maps upload writability to availability");
     assert(body.providers?.localFallback?.available === true, "provider status reports local fallback availability");
     if (ownsServer) assert(body.status === "ready" && body.providers.uploadStorage.writable, "owned smoke server provider status is ready");
@@ -331,6 +333,7 @@ async function startServer() {
     env: {
       ...process.env,
       ELEVENLABS_API_KEY: "",
+      YOLO_SERVICE_URL: "",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -429,6 +432,15 @@ async function pollScenarioJob(jobId) {
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function assertYoloStatus(yolo, label) {
+  assert(typeof yolo?.configured === "boolean", `${label} reports YOLO configuration state`);
+  assert(typeof yolo?.available === "boolean", `${label} reports YOLO availability`);
+  assert(["health", "failed-health", "not-configured"].includes(yolo?.check), `${label} reports YOLO health check status`);
+  if (typeof yolo.serviceHost === "string") {
+    assert(!yolo.serviceHost.includes("://") && !yolo.serviceHost.includes("/"), `${label} reports sanitized YOLO service host`);
+  }
 }
 
 function assertEventsSortedNewestFirst(events, message) {

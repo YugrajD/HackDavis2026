@@ -43,6 +43,7 @@ export const CAMERA_ROLES = ["front", "rear", "dashcam"] as const satisfies read
 
 export const PROVIDER_NAMES = {
   gemini: "gemini",
+  yolo: "yolo",
   perception: "perception",
   stub: "stub",
   claude: "claude",
@@ -177,6 +178,14 @@ export type AnalyzeAndSaveMediaResponse = {
   yoloNote?: string;
 };
 
+export type YoloProviderStatus = {
+  configured: boolean;
+  available: boolean;
+  check: "health" | "failed-health" | "not-configured";
+  serviceHost?: string;
+  error?: string;
+};
+
 export type ProviderStatusResponse = {
   status: "ready" | "degraded";
   generatedAt: string;
@@ -206,6 +215,7 @@ export type ProviderStatusResponse = {
       check: "configuration";
       fallback: "native-tts";
     };
+    yolo: YoloProviderStatus;
     uploadStorage: {
       configured: boolean;
       available: boolean;
@@ -239,6 +249,7 @@ export type ReadinessResponse = {
     gemini: { configured: boolean };
     anthropic: { configured: boolean };
     elevenLabs: { configured: boolean };
+    yolo: YoloProviderStatus;
     uploads: {
       configured: boolean;
       writable: boolean;

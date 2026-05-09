@@ -318,6 +318,14 @@ export type AnalyzeAndSaveMediaResponse = {
   message: string;
 };
 
+export type YoloProviderStatus = {
+  configured: boolean;
+  available: boolean;
+  check: "health" | "failed-health" | "not-configured";
+  serviceHost?: string;
+  error?: string;
+};
+
 export type ProviderStatusResponse = {
   status: "ready" | "degraded";
   generatedAt: string;
@@ -332,6 +340,7 @@ export type ProviderStatusResponse = {
     gemini: { configured: boolean; available: boolean; check: "configuration"; fallback: "stub" };
     claude: { configured: boolean; available: boolean; check: "configuration"; fallback: "stub" };
     elevenLabs: { configured: boolean; available: boolean; check: "configuration"; fallback: "native-tts" };
+    yolo: YoloProviderStatus;
     uploadStorage: {
       configured: boolean;
       available: boolean;
@@ -365,6 +374,7 @@ export type ReadinessResponse = {
     gemini: { configured: boolean };
     anthropic: { configured: boolean };
     elevenLabs: { configured: boolean };
+    yolo: YoloProviderStatus;
     uploads: {
       configured: boolean;
       writable: boolean;
@@ -636,7 +646,7 @@ Response:
 
 ### `GET /api/providers/status`
 
-Reports sanitized configured/available status for MongoDB, Gemini, Claude, ElevenLabs, upload storage, and local fallback paths. It never returns secret values. Remote AI providers use configuration checks only; MongoDB uses a ping check, and upload storage uses a local write probe.
+Reports sanitized configured/available status for MongoDB, Gemini, Claude, ElevenLabs, YOLO, upload storage, and local fallback paths. It never returns secret values. Remote AI providers use configuration checks only; MongoDB uses a ping check, YOLO uses a short `GET /health` check when `YOLO_SERVICE_URL` is configured, and upload storage uses a local write probe. YOLO reports only the parsed `serviceHost`, never the raw URL.
 
 Response:
 
@@ -649,6 +659,7 @@ Response:
     "gemini": { "configured": false, "available": false, "check": "configuration", "fallback": "stub" },
     "claude": { "configured": false, "available": false, "check": "configuration", "fallback": "stub" },
     "elevenLabs": { "configured": false, "available": false, "check": "configuration", "fallback": "native-tts" },
+    "yolo": { "configured": false, "available": false, "check": "not-configured" },
     "uploadStorage": { "configured": true, "available": true, "writable": true, "relativePath": "public/generated/uploads", "check": "write-probe" },
     "localFallback": {
       "configured": true,
@@ -665,7 +676,7 @@ Response:
 
 ### `GET /api/health/readiness`
 
-Reports backend readiness without returning secret values. It checks Mongo connectivity, Gemini/Anthropic/ElevenLabs key presence, local upload directory writability, and current seeded data counts when available. A configured but unreachable MongoDB or unwritable upload directory returns `503` with `status: "degraded"`.
+Reports backend readiness without returning secret values. It checks Mongo connectivity, Gemini/Anthropic/ElevenLabs key presence, YOLO sidecar health when `YOLO_SERVICE_URL` is configured, local upload directory writability, and current seeded data counts when available. A configured but unreachable MongoDB, configured but failed YOLO health check, or unwritable upload directory returns `503` with `status: "degraded"`.
 
 Response:
 
@@ -678,6 +689,7 @@ Response:
     "gemini": { "configured": false },
     "anthropic": { "configured": false },
     "elevenLabs": { "configured": false },
+    "yolo": { "configured": false, "available": false, "check": "not-configured" },
     "uploads": { "configured": true, "writable": true, "relativePath": "public/generated/uploads" }
   },
   "data": {

@@ -49,7 +49,7 @@ No vendor key is required for the local demo. Real `MONGODB_URI`, `GEMINI_API_KE
 - Scenario/report wiring pass added deterministic `/api/scenarios` GET/POST payloads, replay-ready scenario output, shared report/export contracts, and `/api/reports/export` `pdf-text` output.
 - Added in-memory Mirage-style scenario job polling with `POST /api/scenarios/jobs` and `GET /api/scenarios/jobs/:jobId`; jobs use the deterministic scenario generator and return the same single/batch result shapes.
 - Report/export now preserve documented seeded segment IDs after danger-segment recomputation. Known demo clusters get stable IDs during recompute, and `segmentId` lookup falls back by seeded label, top hazard types, and location.
-- Added `GET /api/providers/status` for sanitized configured/available status across MongoDB, Gemini, Claude, ElevenLabs, upload storage, and local fallback paths.
+- Added `GET /api/providers/status` for sanitized configured/available status across MongoDB, Gemini, Claude, ElevenLabs, YOLO, upload storage, and local fallback paths. YOLO readiness uses a short `/health` probe when `YOLO_SERVICE_URL` is set and exposes only the parsed service host.
 - Report exports now persist sanitized files under `public/generated/reports` and return `exportUrl` with the existing export payload.
 
 ## Current integration assumptions

@@ -1,6 +1,6 @@
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getServerConfig, type SponsorConfig, type StorageConfig } from "@/lib/config/server";
+import { getServerConfig, getYoloServiceUrl, type SponsorConfig, type StorageConfig } from "@/lib/config/server";
 import type { ProviderStatusResponse, ReadinessResponse } from "@/lib/contracts";
 import { PROVIDER_NAMES } from "@/lib/contracts";
 import { getMongoDb, isMongoConfigured } from "@/lib/db/mongo";
@@ -67,10 +67,46 @@ export function sponsorPresence(config: SponsorConfig[keyof SponsorConfig]) {
   return { configured: Boolean(config.apiKey) };
 }
 
+export async function checkYoloReadiness(timeoutMs = 800): Promise<ReadinessResponse["integrations"]["yolo"]> {
+  const base = getYoloServiceUrl();
+  if (!base) return { configured: false, available: false, check: "not-configured" };
+
+  let serviceHost: string | undefined;
+  try {
+    const url = new URL(base);
+    serviceHost = url.host;
+  } catch {
+    return { configured: true, available: false, check: "failed-health", error: "InvalidUrl" };
+  }
+
+  try {
+    const response = await fetch(`${base.replace(/\/$/, "")}/health`, {
+      method: "GET",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    return {
+      configured: true,
+      available: response.ok,
+      check: response.ok ? "health" : "failed-health",
+      serviceHost,
+      ...(response.ok ? {} : { error: `HTTP_${response.status}` }),
+    };
+  } catch (error) {
+    return {
+      configured: true,
+      available: false,
+      check: "failed-health",
+      serviceHost,
+      error: error instanceof Error ? error.name : "YoloHealthError",
+    };
+  }
+}
+
 export async function getProviderStatus(): Promise<ProviderStatusResponse> {
   const config = getServerConfig();
-  const [mongo, uploads] = await Promise.all([checkMongoReadiness(), checkUploadStorage(config.storage.media)]);
-  const ready = uploads.writable && (!mongo.configured || mongo.connected);
+  const [mongo, uploads, yolo] = await Promise.all([checkMongoReadiness(), checkUploadStorage(config.storage.media), checkYoloReadiness()]);
+  const ready = uploads.writable && (!mongo.configured || mongo.connected) && (!yolo.configured || yolo.available);
 
   return {
     status: ready ? "ready" : "degraded",
@@ -101,6 +137,7 @@ export async function getProviderStatus(): Promise<ProviderStatusResponse> {
         check: "configuration",
         fallback: "native-tts",
       },
+      yolo,
       uploadStorage: {
         configured: uploads.configured,
         available: uploads.writable,

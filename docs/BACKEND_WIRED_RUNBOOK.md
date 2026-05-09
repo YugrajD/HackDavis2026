@@ -1,6 +1,6 @@
 # Backend Wired Runbook
 
-Guardian Road's backend is wired for the HackDavis demo. Replay, records, capture, scenario, report, media, voice, and database-status routes all return stable JSON envelopes from `src/lib/contracts.ts`. The app works with no secrets by using the memory store and deterministic/stub AI providers; adding secrets turns on MongoDB Atlas, Gemini, Claude, and ElevenLabs paths without changing client contracts.
+Guardian Road's backend is wired for the HackDavis demo. Replay, records, capture, scenario, report, media, voice, and database-status routes all return stable JSON envelopes from `src/lib/contracts.ts`. The app works with no secrets by using the memory store and deterministic/stub AI providers; adding secrets or `YOLO_SERVICE_URL` turns on MongoDB Atlas, Gemini, Claude, ElevenLabs, and YOLO paths without changing client contracts.
 
 ## Wired API surface
 
@@ -21,7 +21,7 @@ Use `http://localhost:3000` as the local base URL.
 | Voice alerts | `POST /api/voice/alert` | Wired; ElevenLabs when keyed, `audioUrl: null` fallback otherwise | Capture/rider mode |
 | Scenario Lab | `GET /api/scenarios`, `POST /api/scenarios`, `POST /api/scenarios/jobs`, `GET /api/scenarios/jobs/:jobId` | Wired; deterministic prompt-to-road-danger output plus in-memory job polling | Demo/judges |
 | DB status | `GET /api/db/status` | Wired; reports Atlas configuration and connection | Demo sanity check |
-| Provider status | `GET /api/providers/status` | Wired; reports sanitized configured/available status for Atlas, Gemini, Claude, ElevenLabs, uploads, and local fallback | Demo sanity check |
+| Provider status | `GET /api/providers/status` | Wired; reports sanitized configured/available status for Atlas, Gemini, Claude, ElevenLabs, YOLO, uploads, and local fallback | Demo sanity check |
 
 The demo ride ID is `demo-ride-1`. Replay friends should load `/api/replay/demo-ride-1`. Records friends should load `/api/events?rideId=demo-ride-1`, `/api/danger-segments`, and `/api/ai/report`.
 
@@ -42,7 +42,7 @@ Copy `.env.example` to `.env.local`. Do not commit `.env.local` or real keys.
 | `ELEVENLABS_MODEL_ID` | No | ElevenLabs model; defaults to `eleven_multilingual_v2` |
 | `ELEVENLABS_OUTPUT_FORMAT` | No | ElevenLabs audio format; defaults to `mp3_44100_128` |
 | `NEXT_PUBLIC_APP_URL` | No | Public app URL for local links; defaults in `.env.example` to `http://localhost:3000` |
-| `YOLO_SERVICE_URL` | No | Python FastAPI sidecar (`services/yolo`), e.g. `http://127.0.0.1:8000` or `http://<LAN-ip>:8000` so the Next server can proxy detection for phones on Wi‑Fi |
+| `YOLO_SERVICE_URL` | No | Python FastAPI sidecar (`services/yolo`), e.g. `http://127.0.0.1:8000` or `http://<LAN-ip>:8000` so the Next server can proxy detection for phones on Wi‑Fi; readiness reports only the parsed host |
 
 With no keys, the backend still runs the full demo arc through memory persistence plus deterministic/stub providers. Judges can see the contract and UI flow without waiting on vendor accounts.
 
@@ -90,7 +90,7 @@ npm run smoke:api
 npm run smoke:yolo
 ```
 
-`npm run smoke:api` starts a temporary Next server if `API_BASE_URL` is not set, seeds demo data, exercises replay/events/media/report/scenario endpoints, verifies the persisted report `exportUrl`, and stops the server. `npm run smoke:yolo` checks `POST /api/perception/detect` when a Next server is reachable; it exits 0 with a skip note when the server is down or `YOLO_SERVICE_URL` is unset.
+`npm run smoke:api` starts a temporary Next server if `API_BASE_URL` is not set, seeds demo data, exercises readiness/provider status plus replay/events/media/report/scenario endpoints, verifies the persisted report `exportUrl`, and stops the server. `npm run smoke:yolo` checks provider YOLO readiness plus `POST /api/perception/detect` when a Next server is reachable; it exits 0 with a skip note when the server is down or `YOLO_SERVICE_URL` is unset.
 
 ## Repo reuse permission note
 

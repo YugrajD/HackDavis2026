@@ -10,6 +10,7 @@
 import { Buffer } from "node:buffer";
 
 const base = (process.env.API_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+const providerStatusUrl = `${base}/api/providers/status`;
 const detectUrl = `${base}/api/perception/detect`;
 
 // Smallest stable test image (valid JPEG header payload; YOLO may return 0 boxes)
@@ -29,6 +30,8 @@ function fail(note) {
 }
 
 async function main() {
+  await checkProviderStatus();
+
   const imageBase64 = `data:image/jpeg;base64,${tinyJpeg.toString("base64")}`;
   let res;
 
@@ -61,6 +64,37 @@ async function main() {
     process.exit(0);
   }
   fail(`${detectUrl} did not return detections or the expected YOLO_SERVICE_URL skip note.`);
+}
+
+async function checkProviderStatus() {
+  let res;
+  try {
+    res = await fetch(providerStatusUrl, {
+      method: "GET",
+      signal: AbortSignal.timeout(5_000),
+    });
+  } catch {
+    skip(`Next server is not reachable at ${base}. Start it with \`npm run dev\` or set API_BASE_URL to a running server.`);
+  }
+
+  const text = await res.text();
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    console.log(res.status, text);
+    fail(`${providerStatusUrl} returned non-JSON.`);
+  }
+
+  const yolo = body.providers?.yolo;
+  if (typeof yolo?.configured !== "boolean" || typeof yolo?.available !== "boolean" || !["health", "failed-health", "not-configured"].includes(yolo?.check)) {
+    fail(`${providerStatusUrl} did not return YOLO provider status.`);
+  }
+  if (typeof yolo.serviceHost === "string" && (yolo.serviceHost.includes("://") || yolo.serviceHost.includes("/"))) {
+    fail(`${providerStatusUrl} leaked an unsanitized YOLO service host.`);
+  }
+
+  console.log(res.status, JSON.stringify({ yolo }, null, 2));
 }
 
 main().catch((error) => {
