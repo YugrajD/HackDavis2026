@@ -265,6 +265,22 @@ export type ScenarioResponse = {
   provider: "deterministic-scenario-lab";
 };
 
+export type ScenarioJobStatus = "queued" | "running" | "succeeded" | "failed";
+
+export type ScenarioJobResult = ScenarioResponse | { provider: "deterministic-scenario-lab"; scenarios: ScenarioResponse[] };
+
+export type ScenarioJob = {
+  id: string;
+  status: ScenarioJobStatus;
+  createdAt: string;
+  updatedAt: string;
+  statusUrl: string;
+  provider: "deterministic-scenario-lab";
+  input: ScenarioPrompt;
+  result?: ScenarioJobResult;
+  error?: string;
+};
+
 export type SafetyReport = {
   title: string;
   summary: string;
@@ -764,6 +780,45 @@ Batch response:
 
 ```json
 { "provider": "deterministic-scenario-lab", "scenarios": [] }
+```
+
+### `POST /api/scenarios/jobs`
+
+Creates an in-memory scenario generation job for Mirage-style polling. It accepts the same request body as `POST /api/scenarios` and returns `202 Accepted` with `Location` set to the job status URL. No external service is required; the current worker uses the deterministic scenario generator.
+
+Request:
+
+```json
+{ "prompt": "blocked bike lane with cones near campus", "mode": "bike", "seed": 42 }
+```
+
+Response:
+
+```json
+{
+  "id": "scenario-job-...",
+  "status": "queued",
+  "statusUrl": "http://localhost:3000/api/scenarios/jobs/scenario-job-...",
+  "provider": "deterministic-scenario-lab",
+  "input": { "prompt": "blocked bike lane with cones near campus", "mode": "bike", "seed": 42 }
+}
+```
+
+### `GET /api/scenarios/jobs/:jobId`
+
+Polls the in-memory scenario job. `status` is `queued`, `running`, `succeeded`, or `failed`. A succeeded job includes `result`, using the same single or batch response shape as `POST /api/scenarios`; a failed job includes `error`.
+
+Response:
+
+```json
+{
+  "id": "scenario-job-...",
+  "status": "succeeded",
+  "statusUrl": "http://localhost:3000/api/scenarios/jobs/scenario-job-...",
+  "provider": "deterministic-scenario-lab",
+  "input": { "prompt": "blocked bike lane with cones near campus" },
+  "result": { "scenario": {}, "hazardDraft": {}, "replayPayload": {}, "provider": "deterministic-scenario-lab" }
+}
 ```
 
 ### `POST /api/ai/report`

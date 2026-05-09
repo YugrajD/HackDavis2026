@@ -6,6 +6,8 @@
 
 `POST /api/scenarios` accepts either one `prompt` or up to 12 `prompts`. Optional `seed`, `mode`, `camera`, `lat`, and `lng` pin the generated scenario. The single response includes `scenario`, `hazardDraft`, `replayPayload`, and provider `deterministic-scenario-lab`. Batch responses return `scenarios`, each using the same shape.
 
+`POST /api/scenarios/jobs` creates an in-memory scenario generation job and returns `202 Accepted` with a `statusUrl`. `GET /api/scenarios/jobs/:jobId` polls `queued`, `running`, `succeeded`, or `failed`; succeeded jobs include `result` in the same single or batch shape as `POST /api/scenarios`.
+
 ## Report Export
 
 `POST /api/ai/report` returns a structured Vision Zero-style report for a backend segment or caller-provided segment/events.

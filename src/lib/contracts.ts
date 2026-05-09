@@ -352,6 +352,22 @@ export type ScenarioResponse = {
   provider: "deterministic-scenario-lab";
 };
 
+export type ScenarioJobStatus = "queued" | "running" | "succeeded" | "failed";
+
+export type ScenarioJobResult = ScenarioResponse | { provider: "deterministic-scenario-lab"; scenarios: ScenarioResponse[] };
+
+export type ScenarioJob = {
+  id: string;
+  status: ScenarioJobStatus;
+  createdAt: string;
+  updatedAt: string;
+  statusUrl: string;
+  provider: "deterministic-scenario-lab";
+  input: ScenarioPrompt;
+  result?: ScenarioJobResult;
+  error?: string;
+};
+
 export type SafetyReport = {
   title: string;
   summary: string;

@@ -282,6 +282,25 @@ async function main() {
     assert(generated.scenario?.camera === "rear", "scenario respects camera input");
     assert(generated.hazardDraft?.type === "close_pass", "scenario produces expected hazard draft");
     assert(generated.replayPayload?.events?.length === 1, "scenario includes replay-ready event");
+
+    const job = await requestJson("/api/scenarios/jobs", {
+      method: "POST",
+      expectedStatus: 202,
+      body: {
+        prompt: "blocked bike lane with cones near campus",
+        mode: "bike",
+        seed: 20260510,
+      },
+    });
+    assert(job.id?.startsWith("scenario-job-"), "scenario job create returns job id");
+    assert(["queued", "running", "succeeded"].includes(job.status), "scenario job create returns pollable status");
+    assert(typeof job.statusUrl === "string" && job.statusUrl.endsWith(`/api/scenarios/jobs/${job.id}`), "scenario job create returns status URL");
+
+    const completedJob = await pollScenarioJob(job.id);
+    assert(completedJob.status === "succeeded", "scenario job reaches succeeded");
+    assert(completedJob.result?.provider === "deterministic-scenario-lab", "scenario job result reports provider");
+    assert(completedJob.result?.scenario?.title === "Blocked bike-lane hazard", "scenario job result includes generated scenario");
+    assert(completedJob.result?.replayPayload?.events?.length === 1, "scenario job result includes replay payload");
   });
 
   await step("voice alert fallback", async () => {
@@ -393,6 +412,19 @@ async function requestText(path, options = {}) {
     throw new Error(`${method} ${path} returned ${response.status}, expected ${expectedStatuses.join(" or ")}: ${text.slice(0, 500)}`);
   }
   return text;
+}
+
+async function pollScenarioJob(jobId) {
+  const deadline = Date.now() + REQUEST_TIMEOUT_MS;
+  let lastJob = null;
+
+  while (Date.now() < deadline) {
+    lastJob = await requestJson(`/api/scenarios/jobs/${jobId}`);
+    if (["succeeded", "failed"].includes(lastJob.status)) return lastJob;
+    await sleep(250);
+  }
+
+  throw new Error(`Timed out waiting for scenario job ${jobId}: ${JSON.stringify(lastJob)}`);
 }
 
 function assert(condition, message) {

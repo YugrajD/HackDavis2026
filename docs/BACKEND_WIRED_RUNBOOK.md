@@ -19,7 +19,7 @@ Use `http://localhost:3000` as the local base URL.
 | Frame analysis | `POST /api/ai/analyze-frame` | Wired; Gemini when keyed, perception/stub fallback otherwise | Capture |
 | Reports | `POST /api/ai/report`, `POST /api/reports/export` | Wired; Claude when keyed, deterministic report fallback otherwise; exports persist under `public/generated/reports` | Records, judges |
 | Voice alerts | `POST /api/voice/alert` | Wired; ElevenLabs when keyed, `audioUrl: null` fallback otherwise | Capture/rider mode |
-| Scenario Lab | `GET /api/scenarios`, `POST /api/scenarios` | Wired; deterministic prompt-to-road-danger output | Demo/judges |
+| Scenario Lab | `GET /api/scenarios`, `POST /api/scenarios`, `POST /api/scenarios/jobs`, `GET /api/scenarios/jobs/:jobId` | Wired; deterministic prompt-to-road-danger output plus in-memory job polling | Demo/judges |
 | DB status | `GET /api/db/status` | Wired; reports Atlas configuration and connection | Demo sanity check |
 | Provider status | `GET /api/providers/status` | Wired; reports sanitized configured/available status for Atlas, Gemini, Claude, ElevenLabs, uploads, and local fallback | Demo sanity check |
 
@@ -75,6 +75,10 @@ curl -X POST http://localhost:3000/api/reports/export \
   -H 'content-type: application/json' \
   -d '{"segmentId":"seg-russell-olive","format":"pdf-text"}'
 # response includes exportUrl, for example /generated/reports/seg-russell-olive-guardian-road-report.txt
+JOB_ID=$(curl -s -X POST http://localhost:3000/api/scenarios/jobs \
+  -H 'content-type: application/json' \
+  -d '{"prompt":"blocked bike lane with cones near campus","seed":42}' | node -pe 'JSON.parse(require("node:fs").readFileSync(0, "utf8")).id')
+curl http://localhost:3000/api/scenarios/jobs/$JOB_ID
 ```
 
 Optional full smoke check:
