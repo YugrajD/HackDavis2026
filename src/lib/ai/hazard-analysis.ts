@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI, SchemaType, type ResponseSchema } from "@google/generative-ai";
 import { ACTOR_TYPES, CONFIDENCE_MAX, CONFIDENCE_MIN, HAZARD_TYPES, SEVERITY_MAX, SEVERITY_MIN } from "@/lib/contracts";
-import type { ActorType, CameraRole, HazardEvent, HazardType, PerceptionResult, TrackedObject } from "@/lib/contracts";
+import type { ActorType, CameraRole, HazardEvent, HazardType, PerceptionResult, TrackedObject, TrackState } from "@/lib/contracts";
 import { getSponsorConfig } from "@/lib/config/server";
 
 export type AnalyzeFrameInput = {
@@ -46,7 +46,7 @@ const hazardSchema: ResponseSchema = {
 };
 
 export function analyzeFrameStub(input: AnalyzeFrameInput): AnalyzeFrameOutput {
-  if (input.perception?.tracks.length) return outputFromPerception(input.perception);
+  if (input.perception) return outputFromPerception(input.perception);
 
   if (input.camera === "rear") {
     return {
@@ -135,7 +135,36 @@ function outputFromPerception(perception: PerceptionResult): AnalyzeFrameOutput 
     confidence: perception.hazardDraft.confidence,
     spokenAlert: perception.hazardDraft.spokenAlert,
     explanation: perception.hazardDraft.explanation,
-    objects: perception.tracks,
+    objects: tracksToEventObjects(perception.tracks),
+  };
+}
+
+/** Map YOLO / local tracks to persisted event objects (Gemini merge uses the same shape). */
+export function tracksToEventObjects(tracks: TrackState[]): HazardEvent["objects"] {
+  return tracks.map((track) => ({
+    id: track.id,
+    type: track.type,
+    confidence: track.confidence,
+    bbox: track.bbox,
+    distanceM: track.distanceM,
+    ttcSec: track.ttcSec,
+    position: track.position,
+    velocity: track.velocity,
+  }));
+}
+
+/**
+ * When both Gemini and YOLO perception exist: keep geometry from YOLO (tracks, risk-aligned fields),
+ * use Gemini for spoken alert and explanation copy only.
+ */
+export function mergeGeminiWithYoloPerception(gemini: AnalyzeFrameOutput, perception: PerceptionResult): AnalyzeFrameOutput {
+  return {
+    type: perception.hazardDraft.type,
+    severity: perception.hazardDraft.severity,
+    confidence: perception.hazardDraft.confidence,
+    spokenAlert: gemini.spokenAlert,
+    explanation: gemini.explanation,
+    objects: tracksToEventObjects(perception.tracks),
   };
 }
 

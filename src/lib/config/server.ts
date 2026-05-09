@@ -103,3 +103,8 @@ export function getServerConfig(): ServerConfig {
     storage: getStorageConfig(),
   };
 }
+
+/** Base URL for Python YOLO sidecar (no trailing slash), e.g. http://127.0.0.1:8000 */
+export function getYoloServiceUrl(): string | undefined {
+  return optionalEnv("YOLO_SERVICE_URL");
+}

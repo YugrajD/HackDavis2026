@@ -33,6 +33,7 @@ No vendor key is required for the local demo. Real `MONGODB_URI`, `GEMINI_API_KE
 | 3D Replay | Replay friend | `src/app/replay/**`, `src/components/replay/**` | Unblocked by `/api/replay/demo-ride-1` |
 | Records | Records friend | `src/app/records/**`, `src/components/records/**` | Unblocked by `/api/events`, `/api/danger-segments`, `/api/ai/report`, `/api/reports/export` |
 | Shell/design/docs | Orchestrator | `src/app/page.tsx`, `src/components/shell/**`, `docs/**` | Shell scaffolded |
+| Mobile (Expo) | Orchestrator / team | `apps/mobile/**` | Wi‑Fi capture → same APIs as web; set `EXPO_PUBLIC_API_BASE_URL` to laptop LAN |
 
 ## Shared contract changes
 
@@ -43,6 +44,7 @@ No vendor key is required for the local demo. Real `MONGODB_URI`, `GEMINI_API_KE
 - Added reuse ports/helpers: `/api/scenarios`, `/api/media/analyze-and-save`, `/api/reports/export`, a Spark/Three `SplatViewer`, perception worker helpers, hotspot utilities, and report exporters.
 - Added `POST /api/rides/:rideId/route` so live capture can append route points to memory or Mongo-backed rides and refresh replay stats.
 - Added PathSense-style perception contracts for frame detections, local tracks, risk payloads, and worker output. `/api/ai/analyze-frame` and `/api/media/analyze-and-save` now accept optional `perception` payloads and can return provider `perception` when Gemini is not configured.
+- Added Wi‑Fi / LAN **YOLOv8 (COCO)** path: Python sidecar under `services/yolo`, env `YOLO_SERVICE_URL`, Next proxy `POST /api/perception/detect`, and `useYolo` on `POST /api/media/analyze-and-save` (optional `yoloNote` on error). Expo client lives in `apps/mobile` with `EXPO_PUBLIC_API_BASE_URL`.
 - Backend readiness pass added JSON error envelopes, bounded JSON bodies, stricter media MIME/signature checks, route parameter safeguards, and deployment notes in `docs/BACKEND_DEPLOYMENT.md`.
 - Scenario/report wiring pass added deterministic `/api/scenarios` GET/POST payloads, replay-ready scenario output, shared report/export contracts, and `/api/reports/export` `pdf-text` output.
 - Report/export now preserve documented seeded segment IDs after danger-segment recomputation. Known demo clusters get stable IDs during recompute, and `segmentId` lookup falls back by seeded label, top hazard types, and location.

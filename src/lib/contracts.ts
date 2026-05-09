@@ -173,6 +173,8 @@ export type AnalyzeAndSaveMediaResponse = {
   provider: "gemini" | "perception" | "stub";
   perception?: PerceptionResult;
   message: string;
+  /** Populated when `useYolo` was set but the sidecar failed or returned an error note. */
+  yoloNote?: string;
 };
 
 export type ReadinessResponse = {

@@ -15,6 +15,7 @@ export async function POST(request: Request) {
         persisted: result.persisted,
         provider: result.provider,
         perception: result.perception,
+        ...(result.yoloNote ? { yoloNote: result.yoloNote } : {}),
         message:
           result.persisted === "mongodb"
             ? "Analyzed media and stored the hazard event in MongoDB Atlas."
@@ -40,5 +41,6 @@ function sanitizeAnalyzeAndPersistInput(input: AnalyzeAndPersistMediaInput): Ana
     clipUrl: safeMediaUrl(input.clipUrl),
     thumbnailUrl: safeMediaUrl(input.thumbnailUrl),
     perception: sanitizePerceptionResult(input.perception),
+    useYolo: input.useYolo === true,
   };
 }

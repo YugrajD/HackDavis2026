@@ -447,9 +447,38 @@ Response:
 }
 ```
 
+### `POST /api/perception/detect`
+
+Runs **server-side COCO YOLOv8** via a Python sidecar. Configure **`YOLO_SERVICE_URL`** in `.env.local` (for example `http://127.0.0.1:8000` on the dev machine, or `http://<LAN-ip>:8000` when the phone must reach the laptop on Wi‑Fi). Next.js proxies the frame to that service.
+
+Request:
+
+```json
+{
+  "imageBase64": "data:image/jpeg;base64,...",
+  "imageMimeType": "image/jpeg"
+}
+```
+
+Response (200):
+
+```json
+{
+  "detections": [
+    { "id": "coco-2-0", "label": "car", "confidence": 0.87, "bbox": [0.1, 0.2, 0.5, 0.7], "description": "COCO car" }
+  ],
+  "width": 1280,
+  "height": 720
+}
+```
+
+Returns **503** when `YOLO_SERVICE_URL` is unset or the sidecar is unreachable, with `detections: []` and an explanatory `note`.
+
 ### `POST /api/media/analyze-and-save`
 
 LureLore-inspired one-shot media pipeline. It accepts a frame plus optional stored media URLs, analyzes through Gemini when configured, persists a `HazardEvent` to MongoDB or memory, and returns the saved event.
+
+Set **`useYolo`: true** to run YOLO detection (same sidecar as `/api/perception/detect`) when **`perception` is omitted**—the server fills `perception` from `FrameObservation` via `analyzeFrameObservation`, then merges with Gemini when `GEMINI_API_KEY` is set: **tracks and risk-aligned fields from YOLO**, **spoken alert and explanation text from Gemini** when available.
 
 Request:
 
@@ -462,6 +491,7 @@ Request:
   "speedMps": 5.6,
   "headingDeg": 90,
   "camera": "front",
+  "useYolo": true,
   "thumbnailUrl": "/generated/uploads/thumbnail.jpg",
   "clipUrl": "/generated/uploads/clip.webm",
   "perception": {
@@ -478,8 +508,10 @@ Request:
 Response:
 
 ```json
-{ "event": {}, "persisted": "memory", "provider": "gemini", "perception": {} }
+{ "event": {}, "persisted": "memory", "provider": "gemini", "perception": {}, "message": "…" }
 ```
+
+Optional **`yoloNote`** is included when YOLO was requested but the sidecar failed.
 
 ### `POST /api/events/batch`
 

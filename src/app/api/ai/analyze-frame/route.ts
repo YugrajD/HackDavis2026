@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     }
 
     const analysis = analyzeFrameStub(input);
-    const provider = input.perception?.tracks.length ? PROVIDER_NAMES.perception : PROVIDER_NAMES.stub;
+    const provider = input.perception ? PROVIDER_NAMES.perception : PROVIDER_NAMES.stub;
     return NextResponse.json({
       ...analysis,
       provider,

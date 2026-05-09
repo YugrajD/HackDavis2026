@@ -14,7 +14,8 @@ Use `http://localhost:3000` as the local base URL.
 | Replay | `GET /api/replay/:rideId` | Wired; main replay payload | 3D replay |
 | Danger segments | `GET /api/danger-segments` | Wired; recomputed from events with stable seeded IDs | Records, map, reports |
 | Media evidence | `POST /api/media/upload` | Wired; local uploads under `public/generated/uploads` | Capture, records |
-| Analyze and save | `POST /api/media/analyze-and-save` | Wired; Gemini when keyed, perception/stub fallback otherwise | Capture |
+| YOLO detect (proxy) | `POST /api/perception/detect` | Wired; proxies to Python sidecar when `YOLO_SERVICE_URL` is set; 503 with `note` when unset | Mobile, tools |
+| Analyze and save | `POST /api/media/analyze-and-save` | Wired; optional `useYolo` runs COCO YOLO when perception omitted; Gemini when keyed (objects from YOLO, rider copy from Gemini when both) | Capture, mobile |
 | Frame analysis | `POST /api/ai/analyze-frame` | Wired; Gemini when keyed, perception/stub fallback otherwise | Capture |
 | Reports | `POST /api/ai/report`, `POST /api/reports/export` | Wired; Claude when keyed, deterministic report fallback otherwise | Records, judges |
 | Voice alerts | `POST /api/voice/alert` | Wired; ElevenLabs when keyed, `audioUrl: null` fallback otherwise | Capture/rider mode |
@@ -40,6 +41,7 @@ Copy `.env.example` to `.env.local`. Do not commit `.env.local` or real keys.
 | `ELEVENLABS_MODEL_ID` | No | ElevenLabs model; defaults to `eleven_multilingual_v2` |
 | `ELEVENLABS_OUTPUT_FORMAT` | No | ElevenLabs audio format; defaults to `mp3_44100_128` |
 | `NEXT_PUBLIC_APP_URL` | No | Public app URL for local links; defaults in `.env.example` to `http://localhost:3000` |
+| `YOLO_SERVICE_URL` | No | Python FastAPI sidecar (`services/yolo`), e.g. `http://127.0.0.1:8000` or `http://<LAN-ip>:8000` so the Next server can proxy detection for phones on Wi‑Fi |
 
 With no keys, the backend still runs the full demo arc through memory persistence plus deterministic/stub providers. Judges can see the contract and UI flow without waiting on vendor accounts.
 
