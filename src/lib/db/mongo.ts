@@ -37,9 +37,20 @@ export async function getMongoDb(): Promise<Db | null> {
 
 async function ensureIndexes(db: Db) {
   await Promise.all([
+    db.collection("rides").createIndex({ id: 1 }, { unique: true }),
+    db.collection("rides").createIndex({ mode: 1, id: 1 }),
+    db.collection("rides").createIndex({ startedAt: -1, id: 1 }),
+    db.collection("events").createIndex({ id: 1 }, { unique: true }),
     db.collection("events").createIndex({ location: "2dsphere" }),
     db.collection("events").createIndex({ rideId: 1, t: 1 }),
+    db.collection("events").createIndex({ rideId: 1, timestamp: -1, id: 1 }),
+    db.collection("events").createIndex({ type: 1, timestamp: -1, id: 1 }),
+    db.collection("events").createIndex({ camera: 1, timestamp: -1, id: 1 }),
+    db.collection("events").createIndex({ severity: -1, timestamp: -1, id: 1 }),
+    db.collection("danger_segments").createIndex({ id: 1 }, { unique: true }),
     db.collection("danger_segments").createIndex({ location: "2dsphere" }),
+    db.collection("danger_segments").createIndex({ centerLng: 1, centerLat: 1 }),
+    db.collection("danger_segments").createIndex({ score: -1, eventCount: -1, lastSeen: -1, id: 1 }),
   ]);
 }
 
