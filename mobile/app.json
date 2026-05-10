@@ -44,8 +44,7 @@
         }
       ],
       "expo-asset",
-      "react-native-fast-tflite",
-      "react-native-worklets-core"
+      "react-native-fast-tflite"
     ]
   }
 }
