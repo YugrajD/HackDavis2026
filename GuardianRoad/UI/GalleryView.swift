@@ -146,10 +146,38 @@ struct GalleryView: View {
 private struct ClipCard: View {
     let clip: HazardEventItem
     let mediaURL: URL?
+    @State private var fullScreen = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            videoLayer
+            ZStack(alignment: .topTrailing) {
+                videoLayer
+                if mediaURL != nil {
+                    Button { fullScreen = true } label: {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(8)
+                            .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 8))
+                    }
+                    .padding(8)
+                }
+            }
+            .fullScreenCover(isPresented: $fullScreen) {
+                if let url = mediaURL {
+                    ZStack(alignment: .topTrailing) {
+                        Color.black.ignoresSafeArea()
+                        VideoPlayer(player: AVPlayer(url: url))
+                            .ignoresSafeArea()
+                        Button { fullScreen = false } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundStyle(.white.opacity(0.9))
+                                .padding(20)
+                        }
+                    }
+                }
+            }
 
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
