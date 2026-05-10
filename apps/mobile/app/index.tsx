@@ -552,7 +552,14 @@ export default function CaptureScreen() {
       </View>
 
       <View style={styles.camWrap} onLayout={onCameraLayout}>
-        <CameraView ref={(node) => (cameraViewRef.current = node)} style={styles.camera} facing="back" mode="video" />
+        <CameraView
+          ref={(node) => {
+            cameraViewRef.current = node;
+          }}
+          style={styles.camera}
+          facing="back"
+          mode="video"
+        />
         {previewSize && liveDetections.length > 0
           ? liveDetections.map((d, i) => {
               const b = d.bbox;
