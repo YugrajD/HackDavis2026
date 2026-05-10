@@ -28,6 +28,9 @@ type StoreState = {
   rides: Ride[];
   events: HazardEvent[];
   dangerSegments: DangerSegment[];
+  rideById: Map<string, Ride>;
+  rideIdsByMode: Map<RideMode, Set<string>>;
+  eventsByRideId: Map<string, HazardEvent[]>;
 };
 
 type ListEventsOptions = {
@@ -40,10 +43,15 @@ declare global {
 }
 
 function initialState(): StoreState {
+  const rides = cloneValue([demoRide]);
+  const events = cloneValue(demoEvents);
   return {
-    rides: cloneValue([demoRide]),
-    events: cloneValue(demoEvents),
+    rides,
+    events,
     dangerSegments: cloneValue(demoDangerSegments),
+    rideById: indexRidesById(rides),
+    rideIdsByMode: indexRideIdsByMode(rides),
+    eventsByRideId: indexEventsByRideId(events),
   };
 }
 
@@ -68,7 +76,7 @@ export function listRides() {
 }
 
 export function getRide(rideId: string) {
-  return state().rides.find((ride) => ride.id === rideId) ?? null;
+  return state().rideById.get(rideId) ?? null;
 }
 
 export function buildRide(input: CreateRideInput) {
@@ -98,7 +106,10 @@ export function buildRide(input: CreateRideInput) {
 
 export function createRide(input: CreateRideInput) {
   const ride = buildRide(input);
-  state().rides.unshift(ride);
+  const store = state();
+  store.rides.unshift(ride);
+  store.rideById.set(ride.id, ride);
+  upsertRideModeIndex(store, ride);
   return ride;
 }
 
@@ -123,9 +134,11 @@ export function appendRideRoute(rideId: string, points: RoutePoint[]) {
 }
 
 export function listEvents(filters: EventFilters = {}, options: ListEventsOptions = {}) {
+  const store = state();
   const minSeverity = filters.minSeverity ?? 0;
-  const modeRideIds = filters.mode ? new Set(state().rides.filter((ride) => ride.mode === filters.mode).map((ride) => ride.id)) : null;
-  const events = state().events.filter((event) => eventMatchesFilters(event, filters, minSeverity, modeRideIds));
+  const modeRideIds = filters.mode ? store.rideIdsByMode.get(filters.mode) ?? emptyRideIds : null;
+  const candidates = filters.rideId ? store.eventsByRideId.get(filters.rideId) ?? [] : store.events;
+  const events = candidates.filter((event) => eventMatchesFilters(event, filters, minSeverity, modeRideIds));
 
   return sortEvents(events, options.order ?? "newest");
 }
@@ -154,7 +167,9 @@ export function buildEvent(input: Partial<HazardEvent>) {
 
 export function createEvent(input: Partial<HazardEvent>) {
   const event = buildEvent(input);
-  state().events.unshift(event);
+  const store = state();
+  store.events.unshift(event);
+  addEventToRideIndex(store, event);
   applyEventStatsDelta(event.rideId, 1, event.severity);
   recomputeDangerSegments();
   return event;
@@ -164,14 +179,25 @@ export function createEvents(inputs: Partial<HazardEvent>[]) {
   const events = inputs.map(buildEvent);
   if (!events.length) return events;
 
-  state().events.unshift(...events);
+  const store = state();
+  store.events.unshift(...events);
+  for (let index = events.length - 1; index >= 0; index -= 1) addEventToRideIndex(store, events[index]);
   applyEventStatsDeltas(events);
   recomputeDangerSegments();
   return events;
 }
 
 export function listNearbyEvents(lat: number, lng: number, radiusM: number) {
-  return sortEventsNewestFirst(state().events.filter((event) => haversineMeters(lat, lng, event.lat, event.lng) <= radiusM));
+  const radiusLat = radiusM / 111_320;
+  const cosLat = Math.max(0.01, Math.cos((lat * Math.PI) / 180));
+  const radiusLng = radiusM / (111_320 * cosLat);
+
+  return sortEventsNewestFirst(
+    state().events.filter((event) => {
+      if (Math.abs(event.lat - lat) > radiusLat || Math.abs(event.lng - lng) > radiusLng) return false;
+      return haversineMeters(lat, lng, event.lat, event.lng) <= radiusM;
+    }),
+  );
 }
 
 export function listDangerSegments(bbox?: { westLng: number; southLat: number; eastLng: number; northLat: number }) {
@@ -228,7 +254,7 @@ function eventMatchesFilters(event: HazardEvent, filters: EventFilters, minSever
 }
 
 function eventStatsForRide(rideId: string) {
-  return summarizeEvents(state().events.filter((event) => event.rideId === rideId));
+  return summarizeEvents(state().eventsByRideId.get(rideId) ?? []);
 }
 
 function summarizeEvents(events: HazardEvent[]): EventStats {
@@ -267,6 +293,40 @@ function applyEventStatsDelta(rideId: string, countDelta: number, maxSeverity: n
 function recomputeDangerSegments() {
   const store = state();
   store.dangerSegments = computeDangerSegments(store.events);
+}
+
+const emptyRideIds = new Set<string>();
+
+function indexRidesById(rides: Ride[]) {
+  return new Map(rides.map((ride) => [ride.id, ride]));
+}
+
+function indexRideIdsByMode(rides: Ride[]) {
+  const index = new Map<RideMode, Set<string>>();
+  for (const ride of rides) upsertRideModeIndex({ rideIdsByMode: index }, ride);
+  return index;
+}
+
+function indexEventsByRideId(events: HazardEvent[]) {
+  const index = new Map<string, HazardEvent[]>();
+  for (const event of events) {
+    const rideEvents = index.get(event.rideId);
+    if (rideEvents) rideEvents.push(event);
+    else index.set(event.rideId, [event]);
+  }
+  return index;
+}
+
+function upsertRideModeIndex(store: Pick<StoreState, "rideIdsByMode">, ride: Ride) {
+  const rideIds = store.rideIdsByMode.get(ride.mode) ?? new Set<string>();
+  rideIds.add(ride.id);
+  store.rideIdsByMode.set(ride.mode, rideIds);
+}
+
+function addEventToRideIndex(store: Pick<StoreState, "eventsByRideId">, event: HazardEvent) {
+  const rideEvents = store.eventsByRideId.get(event.rideId);
+  if (rideEvents) rideEvents.unshift(event);
+  else store.eventsByRideId.set(event.rideId, [event]);
 }
 
 function clamp(value: number, min: number, max: number) {

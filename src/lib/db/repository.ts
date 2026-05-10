@@ -35,6 +35,7 @@ type Persisted<T> = {
 type Location = ReturnType<typeof point>;
 type EventDocument = HazardEvent & { location: Location };
 type DangerSegmentDocument = DangerSegment & { location: Location };
+type DangerSegmentEvent = Pick<HazardEvent, "id" | "rideId" | "t" | "timestamp" | "type" | "severity" | "lat" | "lng">;
 type ListEventsOptions = { order?: EventSortOrder };
 
 export async function listRides() {
@@ -271,8 +272,8 @@ async function applyMongoEventStatsDeltas(db: Db, events: HazardEvent[]) {
 }
 
 async function recomputeMongoDangerSegments(db: Db) {
-  const docs = await db.collection<EventDocument>("events").find({}, { projection: { _id: 0, location: 0 } }).toArray();
-  const dangerSegments = computeDangerSegments(docs.map(stripLocation));
+  const docs = await db.collection<DangerSegmentEvent>("events").find({}, { projection: dangerSegmentEventProjection }).toArray();
+  const dangerSegments = computeDangerSegments(docs as unknown as HazardEvent[]);
 
   await replaceMongoDangerSegments(db, dangerSegments);
 }
@@ -294,6 +295,18 @@ async function replaceMongoDangerSegments(db: Db, dangerSegments: DangerSegment[
   );
   await db.collection<DangerSegmentDocument>("danger_segments").deleteMany({ id: { $nin: dangerSegments.map((segment) => segment.id) } });
 }
+
+const dangerSegmentEventProjection = {
+  _id: 0,
+  id: 1,
+  rideId: 1,
+  t: 1,
+  timestamp: 1,
+  type: 1,
+  severity: 1,
+  lat: 1,
+  lng: 1,
+} as const;
 
 function toEventDocument(event: HazardEvent): EventDocument {
   return {
