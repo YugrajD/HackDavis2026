@@ -183,7 +183,6 @@ export default function CaptureScreen() {
   const [activeRide, setActiveRide] = useState<ActiveRide | null>(null);
   const [preflight, setPreflight] = useState<PreflightState>({ loading: true });
 
-  const [monitorOn, setMonitorOn] = useState(false);
   const [previewSize, setPreviewSize] = useState<PreviewSize | null>(null);
   const [liveDetections, setLiveDetections] = useState<FrameDetection[]>([]);
   const [liveDetectNote, setLiveDetectNote] = useState<string | undefined>();
@@ -325,7 +324,6 @@ export default function CaptureScreen() {
   }, [activeRide, readTelemetry, startRideFor]);
 
   const endRide = useCallback(async () => {
-    setMonitorOn(false);
     if (!activeRide) return;
     setBusy(true);
     setStatus("Ending ride…");
@@ -376,7 +374,7 @@ export default function CaptureScreen() {
   }, []);
 
   useEffect(() => {
-    if (!monitorOn) {
+    if (!permission?.granted) {
       setLiveDetections([]);
       setLiveHudScore(0);
       setLiveDetectNote(undefined);
@@ -389,6 +387,11 @@ export default function CaptureScreen() {
 
     const liveLoop = async () => {
       while (!cancelled) {
+        if (busyRef.current) {
+          await new Promise((r) => setTimeout(r, LIVE_MONITOR_ERROR_BACKOFF_MS));
+          continue;
+        }
+
         const cam = cameraViewRef.current;
         if (!cam) {
           await new Promise((r) => setTimeout(r, LIVE_MONITOR_ERROR_BACKOFF_MS));
@@ -455,7 +458,7 @@ export default function CaptureScreen() {
     return () => {
       cancelled = true;
     };
-  }, [monitorOn, persistPipelineFromImage]);
+  }, [permission?.granted, persistPipelineFromImage]);
 
   if (!permission) {
     return (
@@ -527,26 +530,17 @@ export default function CaptureScreen() {
       </View>
 
       <View style={styles.monitorPanel}>
-        <Text style={styles.preflightTitle}>Live monitor</Text>
+        <Text style={styles.preflightTitle}>Live perception</Text>
         <Text style={styles.monitorCaption}>
-          Continuous loop: each frame captures JPEG, POST /api/perception/detect, then draws green boxes for every class YOLO returns (no fixed 1.3s wait). Round-trip time depends on Wi‑Fi and laptop GPU. Full save still uses analyze-and-save (manual or debounced auto).
+          Always on while this screen is open: JPEG frames POST to /api/perception/detect; green boxes show YOLO classes. Pauses briefly during manual save. Round-trip depends on Wi‑Fi and laptop GPU. Full events still use analyze-and-save (manual or debounced auto).
         </Text>
-        <View style={styles.monitorRow}>
-          <Pressable
-            style={[styles.monitorToggle, monitorOn && styles.monitorToggleOn, busy && styles.disabled]}
-            onPress={() => setMonitorOn((v) => !v)}
-            disabled={busy}
-          >
-            <Text style={styles.monitorToggleText}>{monitorOn ? "Stop monitor" : "Start monitor"}</Text>
-          </Pressable>
-          <View style={styles.monitorStats}>
-            <Text style={styles.monitorStatLine}>HUD score {liveHudScore}</Text>
-            <Text style={styles.monitorStatLine}>{liveDetections.length} detection(s)</Text>
-            <Text style={styles.monitorStatLine}>
-              {liveRoundTripMs != null ? `last frame ${liveRoundTripMs} ms` : "last frame —"}
-            </Text>
-            {monitorTickBusy ? <Text style={styles.monitorStatDim}>live loop…</Text> : null}
-          </View>
+        <View style={styles.monitorStats}>
+          <Text style={styles.monitorStatLine}>HUD score {liveHudScore}</Text>
+          <Text style={styles.monitorStatLine}>{liveDetections.length} detection(s)</Text>
+          <Text style={styles.monitorStatLine}>
+            {liveRoundTripMs != null ? `last frame ${liveRoundTripMs} ms` : "last frame —"}
+          </Text>
+          {monitorTickBusy ? <Text style={styles.monitorStatDim}>live loop…</Text> : null}
         </View>
         {liveDetectNote ? <Text style={styles.preflightError}>{liveDetectNote}</Text> : null}
       </View>
@@ -661,18 +655,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(34,211,238,0.2)",
   },
   monitorCaption: { color: "#94a3b8", fontSize: 12, lineHeight: 18, marginTop: 6 },
-  monitorRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 10 },
-  monitorToggle: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.35)",
-    backgroundColor: "rgba(255,255,255,0.06)",
-  },
-  monitorToggleOn: { borderColor: "rgba(34,211,238,0.65)", backgroundColor: "rgba(34,211,238,0.12)" },
-  monitorToggleText: { color: "#e2e8f0", fontWeight: "600", fontSize: 13 },
-  monitorStats: { flex: 1 },
+  monitorStats: { marginTop: 10 },
   monitorStatLine: { fontFamily: "monospace", fontSize: 11, color: "#cbd5e1" },
   monitorStatDim: { fontFamily: "monospace", fontSize: 10, color: "#64748b", marginTop: 4 },
   camWrap: {

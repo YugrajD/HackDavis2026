@@ -122,7 +122,7 @@ If YOLO is configured but not reachable, overall provider status becomes `"degra
 
 ## 5. Live monitor (Expo)
 
-The mobile app can run **continuous video preview** with a **Start monitor** toggle. While monitor is on:
+The mobile capture screen runs **continuous video preview** with **always-on** live perception (no toggle). While the screen is open and camera permission is granted:
 
 - An **async loop** runs back-to-back: snapshot JPEG (**~0.38 quality**) → **`POST /api/perception/detect`** → update UI (no fixed seconds-between-frames delay; effective FPS is limited by camera encode, Wi‑Fi, and YOLO latency). The UI shows **last frame round-trip ms** as feedback.
 - Every returned detection is drawn with a **green** border and a small **label** chip (normalized `bbox` over the preview).
