@@ -8,12 +8,12 @@
 
 ## What it does
 
-A unified safety pipeline for shared roads, running across three sensor modes:
+A unified safety pipeline for shared roads. Every ride is tagged with a `RideMode` (`bike` · `scooter` · `car`) so the same perception loop, voice layer, and danger-segment store serves three sensor classes:
 
 | # | Mode | Role |
 |---|------|------|
 | 01 | Bike | Rider-mounted detection of vehicles, pedestrians, door zones, blocked bike lanes |
-| 02 | Scooter | Same pipeline, retuned for scooter speeds and shared micro-mobility paths |
+| 02 | Scooter | Same pipeline at scooter speeds and on shared micro-mobility paths |
 | 03 | Car | Dashcam mode warning drivers about cyclists, pedestrians, and unsafe passing |
 
 Every detected hazard becomes a geotagged event with a saved clip, a spoken alert, a 3D replay, and aggregated heatmap data for the city.
@@ -21,25 +21,26 @@ Every detected hazard becomes a geotagged event with a saved clip, a spoken aler
 ## How it works
 
 ```
-camera + GPS + IMU
-  → on-device YOLO detection
-  → cloud frame analysis (Gemini)
+camera + GPS + LiDAR scene depth
+  → YOLOv8 detection (FastAPI sidecar)
+  → frame classification + severity (Gemini)
   → spoken alert (ElevenLabs)
-  → saved event (MongoDB Atlas, 2dsphere index)
-  → records dashboard
+  → saved event with clip + thumbnail (MongoDB Atlas, 2dsphere index)
+  → records console
   → 3D replay (Three.js / R3F)
-  → Davis danger map
-  → city safety report (Claude)
+  → danger-segment heatmap
+  → corridor safety report (Claude)
 ```
 
 The Next.js server is the single source of truth. The iOS app and the web records console consume the same `/api/*` contract — `src/lib/contracts.ts`.
 
 ## Stack
 
-- **Native iOS** (`GuardianRoad/`) — SwiftUI dashcam with multicam picture-in-picture, Apple Maps navigation overlay (compass, minimap, turn-by-turn imperial), live YOLO frame inference, voice command ("save clip"), and a clip gallery with full-screen playback.
-- **Next.js web** (`src/app/`) — Backend APIs and dashboards. Records console, replay console, scenario generator, safety-report export.
-- **Python YOLO sidecar** (`services/yolo/`) — FastAPI server running YOLOv8 for real-time perception. Degrades gracefully when offline.
-- **Three.js replay** (`src/components/replay/`) — R3F scene reconstructing the ride as a road ribbon along the GPS curve, with actors, lane markings, hazard markers, and timeline scrubbing.
+- **Native iOS** (`GuardianRoad/`) — SwiftUI dashcam built on `AVCaptureMultiCamSession` for picture-in-picture front+rear capture, an Apple Maps overlay with compass, expandable minimap, and turn-by-turn directions in imperial units, live YOLO frame inference, an `SFSpeechRecognizer` "save clip" voice command, and a clip gallery with full-screen playback.
+- **Next.js web** (`src/app/`) — Backend APIs and dashboards. Records console, replay console, scenario lab, safety-report export.
+- **Python YOLO sidecar** (`services/yolo/`) — FastAPI server running YOLOv8 (`ultralytics`) for real-time perception. Falls back to the in-app COCO labels when offline.
+- **R3F replay** (`src/components/replay/`) — `@react-three/fiber` scene reconstructing the ride along the GPS curve, with actors, lane markings, hazard markers, and timeline scrubbing.
+- **Marketing site** (`web/`) — separate Next.js landing page (port 3001) for the consumer pitch under the working name **Semicolon**.
 
 ## Sponsor integrations
 
@@ -111,23 +112,24 @@ ipconfig getifaddr en0
 
 ```
 GuardianRoad/              Native iOS dashcam app (SwiftUI)
-  Core/Camera/             Multicam capture + rolling recorder
-  Core/Navigation/         CoreLocation heading + MapKit routing
-  Core/Perception/         YOLO client, scene depth manager
+  Core/Camera/             AVCaptureMultiCamSession + rolling recorder
+  Core/Navigation/         CoreLocation + MapKit routing
+  Core/Perception/         YOLO client + ARKit scene-depth manager
   Core/Gallery/            Saved events client
   UI/                      DashcamView, NavigationOverlay, GalleryView
 
-src/                       Next.js web app
+src/                       Next.js judge dashboard + API
   app/                     Pages + API routes
-    api/                   Rides, events, perception, AI, scenarios
+    api/                   rides, events, perception, ai, scenarios, media
     records/               Records console
     replay/[rideId]/       3D replay page
-  components/replay/       Three.js scene + console
+  components/replay/       R3F scene + console
   components/records/      Records UI
-  lib/                     AI, db, perception, scenarios, contracts
+  lib/                     ai, db, perception, scenarios, contracts
 
 services/yolo/             Python YOLOv8 FastAPI sidecar
-scripts/                   Demo doctor + scenario generator
+web/                       Marketing landing page (Next.js, :3001)
+scripts/                   demo:doctor + scenarios:generate
 ```
 
 ## Tracks
