@@ -98,7 +98,11 @@ struct GalleryView: View {
             ScrollView {
                 LazyVStack(spacing: 16) {
                     ForEach(clips) { clip in
-                        ClipCard(clip: clip, mediaURL: client.resolveMediaURL(clip.clipUrl ?? ""))
+                        ClipCard(
+                            clip: clip,
+                            mediaURL: client.resolveMediaURL(clip.clipUrl ?? ""),
+                            thumbnailURL: client.resolveMediaURL(clip.thumbnailUrl ?? "")
+                        )
                     }
                 }
                 .padding(.horizontal, 20)
@@ -133,8 +137,12 @@ struct GalleryView: View {
         await MainActor.run { loading = true; errorMessage = nil }
         do {
             let all = try await client.listEvents()
-            let withClips = all.filter { ($0.clipUrl?.trimmingCharacters(in: .whitespaces).isEmpty == false) }
-            await MainActor.run { self.clips = withClips; self.loading = false }
+            let withMedia = all.filter { event in
+                let hasClip = event.clipUrl?.trimmingCharacters(in: .whitespaces).isEmpty == false
+                let hasThumb = event.thumbnailUrl?.trimmingCharacters(in: .whitespaces).isEmpty == false
+                return hasClip || hasThumb
+            }
+            await MainActor.run { self.clips = withMedia; self.loading = false }
         } catch {
             await MainActor.run { self.errorMessage = (error as NSError).localizedDescription; self.loading = false }
         }
@@ -146,6 +154,7 @@ struct GalleryView: View {
 private struct ClipCard: View {
     let clip: HazardEventItem
     let mediaURL: URL?
+    let thumbnailURL: URL?
     @State private var fullScreen = false
 
     var body: some View {
@@ -219,21 +228,43 @@ private struct ClipCard: View {
             VideoPlayer(player: AVPlayer(url: mediaURL))
                 .aspectRatio(16 / 9, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 24))
+        } else if let thumbnailURL {
+            AsyncImage(url: thumbnailURL) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                case .failure:
+                    placeholder(icon: "photo.badge.exclamationmark", label: "Thumbnail unavailable")
+                case .empty:
+                    placeholder(icon: "photo", label: "Loading…")
+                @unknown default:
+                    placeholder(icon: "photo", label: "")
+                }
+            }
+            .aspectRatio(16 / 9, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 24))
         } else {
-            RoundedRectangle(cornerRadius: 24)
-                .fill(Color.componentDark)
-                .aspectRatio(16 / 9, contentMode: .fit)
-                .overlay(
-                    VStack(spacing: 8) {
-                        Image(systemName: "video.slash.fill")
-                            .font(.system(size: 24))
-                            .foregroundStyle(Color.mutedAsh)
-                        Text("No clip recorded")
+            placeholder(icon: "video.slash.fill", label: "No clip recorded")
+        }
+    }
+
+    @ViewBuilder
+    private func placeholder(icon: String, label: String) -> some View {
+        RoundedRectangle(cornerRadius: 24)
+            .fill(Color.componentDark)
+            .aspectRatio(16 / 9, contentMode: .fit)
+            .overlay(
+                VStack(spacing: 8) {
+                    Image(systemName: icon)
+                        .font(.system(size: 24))
+                        .foregroundStyle(Color.mutedAsh)
+                    if !label.isEmpty {
+                        Text(label)
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(Color.mutedAsh)
                     }
-                )
-        }
+                }
+            )
     }
 
     private var severityColor: Color {

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Guardian Road — Shared-Road Safety Intelligence",
-  description: "AI dashcam capture, depth-assisted hazard sensing, replay, and civic safety reports for shared roads.",
+  title: "Guardian Road — Safety Ops",
+  description: "Shared-road hazard sensing, live capture, replay data, danger segments, and civic safety reports for Davis streets.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
