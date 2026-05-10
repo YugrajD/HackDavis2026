@@ -8,9 +8,11 @@ final class DashcamViewModel: NSObject, ObservableObject {
     let recorder = RollingRecorder()
     let navigation = NavigationManager()
     let perception = PerceptionManager()
+    let sceneDepth = SceneDepthManager()
 
     @Published var saveStatus: String = ""
     @Published var currentLocation: CLLocation?
+    @Published var isSceneDepthRequested = false
 
     private var cancellables = Set<AnyCancellable>()
     private let locationManager = CLLocationManager()
@@ -30,7 +32,25 @@ final class DashcamViewModel: NSObject, ObservableObject {
 
         perception.locationProvider = { [weak self] in self?.currentLocation }
         perception.headingProvider = { [weak self] in self?.navigation.userHeading ?? 0 }
+        perception.depthProvider = { [weak self] in self?.sceneDepth.latestFreshSignal }
         perception.attach(framePublisher: camera.framePublisher)
+
+        sceneDepth.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
+        Publishers.CombineLatest3(camera.$isRunning, camera.$activeCamera, $isSceneDepthRequested)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isRunning, activeCamera, wantsDepth in
+                guard let self else { return }
+                if wantsDepth && isRunning && activeCamera == .back {
+                    self.sceneDepth.start()
+                } else {
+                    self.sceneDepth.stop()
+                }
+            }
+            .store(in: &cancellables)
     }
 
     func start() {
@@ -40,8 +60,23 @@ final class DashcamViewModel: NSObject, ObservableObject {
     }
 
     func stop() {
+        isSceneDepthRequested = false
+        sceneDepth.stop()
         camera.stop()
         locationManager.stopUpdatingLocation()
+    }
+
+    func toggleSceneDepth() {
+        guard sceneDepth.isSupported else {
+            showStatus("LiDAR depth unavailable on this iPhone")
+            return
+        }
+        if camera.activeCamera != .back {
+            showStatus("LiDAR depth uses the rear camera")
+            return
+        }
+        isSceneDepthRequested.toggle()
+        showStatus(isSceneDepthRequested ? "LiDAR depth enabled" : "LiDAR depth paused")
     }
 
     private let uploader = MediaUploadClient()

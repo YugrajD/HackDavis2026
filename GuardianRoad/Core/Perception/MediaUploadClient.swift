@@ -106,7 +106,7 @@ struct MediaUploadClient {
             "lng": location?.lng ?? 0,
             "speedMps": speedMps,
             "headingDeg": headingDeg,
-            "camera": "back",
+            "camera": "rear",
             "useYolo": true,
             "clipUrl": clipUrl
         ]

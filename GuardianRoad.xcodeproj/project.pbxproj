@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		8F4E7B6D9A0C4F2198D3B5A2 /* SceneDepthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B8B0B620F6D4E98A7A01D51 /* SceneDepthManager.swift */; };
 		0BD844B7BC5D73B5321F6221 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B7D94C066E4079E6362576 /* CameraManager.swift */; };
 		241FB836EEA296E28DC714C7 /* DashcamViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE3BA4A77142818EF8EA4CC2 /* DashcamViewModel.swift */; };
 		67D4949A72BCE1A046E08BED /* CameraPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A02DCC34E74D68159425139 /* CameraPreview.swift */; };
@@ -25,6 +26,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		3B8B0B620F6D4E98A7A01D51 /* SceneDepthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDepthManager.swift; sourceTree = "<group>"; };
 		01BBB83D5850FD52CA631005 /* NavigationOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationOverlay.swift; sourceTree = "<group>"; };
 		06B7D94C066E4079E6362576 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
 		1D5715A90F57F319AFCAF828 /* PerceptionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerceptionClient.swift; sourceTree = "<group>"; };
@@ -61,6 +63,7 @@
 				1D5715A90F57F319AFCAF828 /* PerceptionClient.swift */,
 				DDE1307B9CB36545E5ABE940 /* PerceptionManager.swift */,
 				D28FD62F003364A2C769A3A9 /* PerceptionTypes.swift */,
+				3B8B0B620F6D4E98A7A01D51 /* SceneDepthManager.swift */,
 			);
 			path = Perception;
 			sourceTree = "<group>";
@@ -198,6 +201,7 @@
 				B14DE5EFADA4A088C862EBB2 /* PerceptionClient.swift in Sources */,
 				F579ACAB53E0004B281AB4D9 /* PerceptionManager.swift in Sources */,
 				A896AC55F4F769061B155628 /* PerceptionTypes.swift in Sources */,
+				8F4E7B6D9A0C4F2198D3B5A2 /* SceneDepthManager.swift in Sources */,
 				876C52FD3BBA91FF706975DC /* RollingRecorder.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

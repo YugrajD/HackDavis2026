@@ -25,6 +25,7 @@ final class PerceptionManager: ObservableObject {
     /// External sources read these to enrich the analyze-and-save payload.
     var locationProvider: () -> CLLocation? = { nil }
     var headingProvider: () -> Double = { 0 }
+    var depthProvider: () -> SceneDepthSignal? = { nil }
 
     init(client: PerceptionClient = PerceptionClient()) {
         self.client = client
@@ -67,9 +68,11 @@ final class PerceptionManager: ObservableObject {
     private func send(jpeg: Data) async {
         do {
             let response = try await client.detect(jpegData: jpeg)
+            let candidateDepth = depthProvider()
+            let depth = candidateDepth?.isFresh(maxAgeSec: AppConfig.sceneDepthMaxAgeSec) == true ? candidateDepth : nil
             self.detections = response.detections
             self.note = response.note
-            let score = Self.score(detections: response.detections)
+            let score = Self.score(detections: response.detections, depth: depth)
             self.hudScore = score
 
             let now = Date()
@@ -122,8 +125,10 @@ final class PerceptionManager: ObservableObject {
 
     private static let vehicleLabels: Set<String> = ["car", "truck", "bus", "bike", "scooter"]
 
-    static func score(detections: [FrameDetection]) -> Int {
+    static func score(detections: [FrameDetection], depth: SceneDepthSignal? = nil) -> Int {
         var maxScore = 0
+        var hasCentralDetection = false
+
         for d in detections {
             guard let bbox = d.bbox, bbox.count >= 4 else { continue }
             let label = d.label.lowercased()
@@ -138,8 +143,23 @@ final class PerceptionManager: ObservableObject {
             if label == "obstacle" { s += 12 }
             if nearCenter { s += 18 }
             if prominent { s += 14 }
+
+            if let depth, nearCenter, depth.nearPixelRatio >= 0.06 {
+                hasCentralDetection = true
+                if depth.centerP10Meters <= AppConfig.sceneDepthNearMeters { s += 12 }
+                if depth.nearPixelRatio >= 0.18 { s += 8 }
+                if depth.isLowLight { s += 6 }
+            }
+
             maxScore = max(maxScore, Int(min(100, max(0, s.rounded()))))
         }
+
+        if let depth, !hasCentralDetection, depth.isLowLight, depth.nearPixelRatio >= 0.22 {
+            // LiDAR can see nearby mass at night even when YOLO is uncertain, but do not
+            // cross the auto-save threshold without a visual detection.
+            maxScore = max(maxScore, min(AppConfig.autoPersistMinScore - 1, 48))
+        }
+
         return maxScore
     }
 
