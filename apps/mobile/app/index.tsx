@@ -7,6 +7,7 @@ import { Audio } from "expo-av";
 import * as Speech from "expo-speech";
 import type { AppendRideRouteResponse, CreateRideResponse, EndRideResponse, MediaUploadResponse, ProviderStatusResponse, Ride } from "./types";
 import { scoreDetectionsForHud, spokenHintForTopDetection, type FrameDetection } from "./live-perception";
+import { NavigationHUD } from "../components/NavigationHUD";
 
 type AnalyzeResponse = {
   event: {
@@ -185,6 +186,7 @@ export default function CaptureScreen() {
   const [previewSize, setPreviewSize] = useState<PreviewSize | null>(null);
   const [liveDetections, setLiveDetections] = useState<FrameDetection[]>([]);
   const [liveDetectNote, setLiveDetectNote] = useState<string | undefined>();
+  const [liveLocation, setLiveLocation] = useState<{ lat: number; lng: number; heading: number; speedMps: number } | null>(null);
   const [liveHudScore, setLiveHudScore] = useState(0);
   const [monitorTickBusy, setMonitorTickBusy] = useState(false);
   const [liveRoundTripMs, setLiveRoundTripMs] = useState<number | null>(null);
@@ -218,6 +220,24 @@ export default function CaptureScreen() {
       setLocPermission(s === "granted");
     })();
   }, []);
+
+  // Keep liveLocation in sync while a ride is active so NavigationHUD updates smoothly.
+  useEffect(() => {
+    if (!activeRide || !locPermission) return;
+    let sub: Location.LocationSubscription | null = null;
+    void Location.watchPositionAsync(
+      { accuracy: Location.Accuracy.High, timeInterval: 1000, distanceInterval: 2 },
+      (loc) => {
+        setLiveLocation({
+          lat: loc.coords.latitude,
+          lng: loc.coords.longitude,
+          heading: loc.coords.heading != null && loc.coords.heading >= 0 ? loc.coords.heading : 0,
+          speedMps: Math.max(0, loc.coords.speed ?? 0),
+        });
+      }
+    ).then((s) => { sub = s; });
+    return () => { sub?.remove(); };
+  }, [activeRide, locPermission]);
 
   const readTelemetry = useCallback(async (): Promise<Telemetry> => {
     let lat = DEMO_ORIGIN.lat;
@@ -523,6 +543,14 @@ export default function CaptureScreen() {
           facing="back"
           mode="video"
         />
+        {activeRide && liveLocation && (
+          <NavigationHUD
+            lat={liveLocation.lat}
+            lng={liveLocation.lng}
+            heading={liveLocation.heading}
+            speedMps={liveLocation.speedMps}
+          />
+        )}
         {previewSize && liveDetections.length > 0
           ? liveDetections.map((d, i) => {
               const b = d.bbox;
