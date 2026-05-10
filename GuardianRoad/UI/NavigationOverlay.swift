@@ -12,6 +12,9 @@ struct NavigationOverlay: View {
 
             // Non-interactive turn-by-turn layer
             VStack(spacing: 0) {
+                // Spacer tall enough to clear the "GUARDIAN ROAD" top bar (~36pt).
+                Color.clear.frame(height: 44)
+
                 switch nav.navState {
                 case .active:
                     maneuverCard.transition(.move(edge: .top).combined(with: .opacity))
@@ -89,7 +92,6 @@ struct NavigationOverlay: View {
         .background(.black.opacity(0.72), in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.12), lineWidth: 1))
         .padding(.horizontal, 12)
-        .padding(.top, 8)
     }
 
     // MARK: - Compass arrow (center)

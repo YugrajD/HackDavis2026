@@ -79,7 +79,6 @@ struct DashcamView: View {
         HStack(alignment: .center, spacing: 16) {
             navButton
             Spacer()
-            locationBadge
             saveButton
         }
         .padding(.horizontal, 16)
@@ -119,18 +118,6 @@ struct DashcamView: View {
         case .active:           return .blue
         case .arrived:          return .green
         default:                return .white.opacity(0.2)
-        }
-    }
-
-    private var locationBadge: some View {
-        Group {
-            if let loc = vm.currentLocation {
-                Text(String(format: "%.4f, %.4f",
-                            loc.coordinate.latitude,
-                            loc.coordinate.longitude))
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.5))
-            }
         }
     }
 
