@@ -40,18 +40,12 @@ export default function Home() {
             <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-roadText-muted">primary actions</p>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight text-roadText">Bring a sensor online</h2>
             <p className="mt-2 max-w-xl text-sm leading-6 text-roadText-muted">
-              Open the capture sensor on a phone or laptop. Start a ride, capture a hazard frame, and the pipeline writes a structured event with audio alert.
+              The GuardianRoad iOS app is the live sensor. Start a ride; the pipeline writes a structured event with audio alert and a saved clip.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <Link
-                href="/capture"
-                className="inline-flex min-h-[44px] items-center border border-amber bg-amber px-5 py-2 font-mono text-xs uppercase tracking-[0.22em] text-void transition-colors duration-150 ease-out hover:bg-orange"
-              >
-                Open capture sensor
-              </Link>
-              <Link
                 href="/records"
-                className="inline-flex min-h-[44px] items-center border border-line-strong px-5 py-2 font-mono text-xs uppercase tracking-[0.22em] text-roadText transition-colors duration-150 ease-out hover:border-amber/60 hover:text-amber"
+                className="inline-flex min-h-[44px] items-center border border-amber bg-amber px-5 py-2 font-mono text-xs uppercase tracking-[0.22em] text-void transition-colors duration-150 ease-out hover:bg-orange"
               >
                 Records console
               </Link>

@@ -7,11 +7,6 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "smoke:api": "node scripts/smoke-api-arc.mjs",
-    "smoke:api:errors": "node scripts/smoke-api-errors.mjs",
-    "smoke:report": "node scripts/smoke-report-export.mjs",
-    "smoke:yolo": "node scripts/smoke-yolo-detect.mjs",
-    "smoke:pages": "node scripts/smoke-pages.mjs",
     "demo:doctor": "node scripts/demo-doctor.mjs",
     "scenarios:generate": "node scripts/generate-road-scenarios.mjs"
   },

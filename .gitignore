@@ -1,6 +1,5 @@
 # dependencies
 /node_modules
-apps/mobile/node_modules
 services/yolo/.venv
 
 # Next.js
@@ -35,9 +34,6 @@ pnpm-debug.log*
 /public/generated/reports/
 /public/generated/scenarios/
 dist
-
-# Expo local tooling
-apps/mobile/.expo/
 
 # Python / ML artifacts
 services/yolo/__pycache__/
