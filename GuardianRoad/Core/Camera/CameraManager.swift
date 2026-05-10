@@ -14,12 +14,15 @@ final class CameraManager: NSObject, ObservableObject {
     @Published var isConfiguring = false
     @Published var permissionDenied = false
     @Published var hasFrontCamera = false
+    @Published var hasBackDepthSensor = false
+    @Published private(set) var latestDepthSignal: SceneDepthSignal?
     @Published var activeCamera: AVCaptureDevice.Position = .back
 
     private let sessionQueue = DispatchQueue(label: "camera.session", qos: .userInteractive)
     private let outputQueue = DispatchQueue(label: "camera.output", qos: .userInteractive)
     private let backOutput = AVCaptureVideoDataOutput()
     private let frontOutput = AVCaptureVideoDataOutput()
+    private let backDepthOutput = AVCaptureDepthDataOutput()
     private let audioOutput = AVCaptureAudioDataOutput()
 
     private let frameSubject = PassthroughSubject<CMSampleBuffer, Never>()
@@ -136,6 +139,8 @@ final class CameraManager: NSObject, ObservableObject {
         let backOutConn = AVCaptureConnection(inputPorts: [backVideoPort], output: backOutput)
         if session.canAddConnection(backOutConn) { session.addConnection(backOutConn) }
 
+        configureDepthOutputIfAvailable(session: session, input: backInput, device: backDevice)
+
         let backPreviewConn = AVCaptureConnection(inputPort: backVideoPort, videoPreviewLayer: backPreviewLayer)
         if session.canAddConnection(backPreviewConn) { session.addConnection(backPreviewConn) }
 
@@ -184,6 +189,31 @@ final class CameraManager: NSObject, ObservableObject {
         }
     }
 
+    private func configureDepthOutputIfAvailable(session: AVCaptureSession, input: AVCaptureDeviceInput, device: AVCaptureDevice) {
+        guard AppConfig.sceneDepthEnabled else { return }
+        guard !device.activeFormat.supportedDepthDataFormats.isEmpty else { return }
+        Self.applyDepthFormat(to: device)
+
+        backDepthOutput.setDelegate(self, callbackQueue: outputQueue)
+        backDepthOutput.isFilteringEnabled = true
+
+        if let multi = session as? AVCaptureMultiCamSession {
+            guard session.canAddOutput(backDepthOutput) else { return }
+            session.addOutputWithNoConnections(backDepthOutput)
+            guard let depthPort = input.ports(for: .depthData,
+                                              sourceDeviceType: device.deviceType,
+                                              sourceDevicePosition: .back).first else { return }
+            let depthConn = AVCaptureConnection(inputPorts: [depthPort], output: backDepthOutput)
+            if multi.canAddConnection(depthConn) {
+                multi.addConnection(depthConn)
+                DispatchQueue.main.async { self.hasBackDepthSensor = true }
+            }
+        } else if session.canAddOutput(backDepthOutput) {
+            session.addOutput(backDepthOutput)
+            DispatchQueue.main.async { self.hasBackDepthSensor = true }
+        }
+    }
+
     /// Pick a multicam-supported format for `device`, preferring 720p (cheap,
     /// fits the multicam cost budget on every supported device) and falling
     /// back to the smallest multicam-supported format otherwise.
@@ -205,6 +235,20 @@ final class CameraManager: NSObject, ObservableObject {
             device.unlockForConfiguration()
         } catch {
             // Best-effort; if locking fails the device keeps its default format.
+        }
+    }
+
+    private static func applyDepthFormat(to device: AVCaptureDevice) {
+        let formats = device.activeFormat.supportedDepthDataFormats
+        guard let format = formats.first(where: { depthFormat in
+            CMFormatDescriptionGetMediaSubType(depthFormat.formatDescription) == kCVPixelFormatType_DepthFloat32
+        }) ?? formats.first else { return }
+        do {
+            try device.lockForConfiguration()
+            device.activeDepthDataFormat = format
+            device.unlockForConfiguration()
+        } catch {
+            // Best effort; the camera continues without LiDAR/depth assist.
         }
     }
 
@@ -230,6 +274,7 @@ final class CameraManager: NSObject, ObservableObject {
         backOutput.setSampleBufferDelegate(self, queue: outputQueue)
         backOutput.alwaysDiscardsLateVideoFrames = true
         if session.canAddOutput(backOutput) { session.addOutput(backOutput) }
+        configureDepthOutputIfAvailable(session: session, input: backInput, device: backDevice)
 
         audioOutput.setSampleBufferDelegate(self, queue: outputQueue)
         if session.canAddOutput(audioOutput) { session.addOutput(audioOutput) }
@@ -241,7 +286,7 @@ final class CameraManager: NSObject, ObservableObject {
 
 // MARK: - Sample buffer routing
 
-extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudioDataOutputSampleBufferDelegate {
+extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudioDataOutputSampleBufferDelegate, AVCaptureDepthDataOutputDelegate {
     func captureOutput(_ output: AVCaptureOutput,
                        didOutput sampleBuffer: CMSampleBuffer,
                        from connection: AVCaptureConnection) {
@@ -251,6 +296,20 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate, AVCapture
             if activeCamera == .front { frameSubject.send(sampleBuffer) }
         } else if output === audioOutput {
             audioSubject.send(sampleBuffer)
+        }
+    }
+
+    func depthDataOutput(_ output: AVCaptureDepthDataOutput,
+                         didOutput depthData: AVDepthData,
+                         timestamp: CMTime,
+                         connection: AVCaptureConnection) {
+        let converted = depthData.depthDataType == kCVPixelFormatType_DepthFloat32
+            ? depthData
+            : depthData.converting(toDepthDataType: kCVPixelFormatType_DepthFloat32)
+        guard let signal = SceneDepthSignal.make(from: converted.depthDataMap) else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.activeCamera == .back else { return }
+            self.latestDepthSignal = signal
         }
     }
 }

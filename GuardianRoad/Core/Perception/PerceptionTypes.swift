@@ -1,5 +1,6 @@
 import Foundation
 import CoreGraphics
+import CoreVideo
 
 /// Mirrors the Expo client's FrameDetection (server-side TypeScript shape).
 struct FrameDetection: Decodable, Identifiable {
@@ -61,5 +62,51 @@ struct SceneDepthSignal: Equatable {
             return "DEPTH low light · \(displayDistance)"
         }
         return "DEPTH \(displayDistance)"
+    }
+
+    static func make(from depthMap: CVPixelBuffer, ambientIntensity: Double? = nil) -> SceneDepthSignal? {
+        guard CVPixelBufferGetPixelFormatType(depthMap) == kCVPixelFormatType_DepthFloat32 else { return nil }
+
+        CVPixelBufferLockBaseAddress(depthMap, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(depthMap, .readOnly) }
+
+        guard let base = CVPixelBufferGetBaseAddress(depthMap) else { return nil }
+        let pointer = base.bindMemory(to: Float32.self, capacity: CVPixelBufferGetDataSize(depthMap) / MemoryLayout<Float32>.stride)
+        let width = CVPixelBufferGetWidth(depthMap)
+        let height = CVPixelBufferGetHeight(depthMap)
+        guard width > 8, height > 8 else { return nil }
+
+        let stride = CVPixelBufferGetBytesPerRow(depthMap) / MemoryLayout<Float32>.stride
+        let x0 = max(0, Int(Double(width) * 0.30))
+        let x1 = min(width - 1, Int(Double(width) * 0.70))
+        let y0 = max(0, Int(Double(height) * 0.28))
+        let y1 = min(height - 1, Int(Double(height) * 0.78))
+        let step = max(1, min(width, height) / 72)
+
+        var depths: [Double] = []
+        var nearCount = 0
+        var sampleCount = 0
+        for y in Swift.stride(from: y0, through: y1, by: step) {
+            for x in Swift.stride(from: x0, through: x1, by: step) {
+                let value = Double(pointer[y * stride + x])
+                guard value.isFinite, value >= 0.12, value <= 15 else { continue }
+                sampleCount += 1
+                depths.append(value)
+                if value <= AppConfig.sceneDepthNearMeters { nearCount += 1 }
+            }
+        }
+
+        guard sampleCount >= 12, !depths.isEmpty else { return nil }
+        depths.sort()
+        let p10Index = min(depths.count - 1, max(0, Int(Double(depths.count - 1) * 0.10)))
+        let ambient = ambientIntensity
+        return SceneDepthSignal(
+            timestamp: Date(),
+            centerMinMeters: depths.first ?? 0,
+            centerP10Meters: depths[p10Index],
+            nearPixelRatio: Double(nearCount) / Double(sampleCount),
+            ambientIntensity: ambient,
+            isLowLight: ambient.map { $0 < AppConfig.sceneDepthLowLightLux } ?? false
+        )
     }
 }
