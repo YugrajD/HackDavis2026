@@ -6,6 +6,7 @@ import CoreLocation
 final class DashcamViewModel: NSObject, ObservableObject {
     let camera = CameraManager()
     let recorder = RollingRecorder()
+    let navigation = NavigationManager()
 
     @Published var saveStatus: String = ""
     @Published var currentLocation: CLLocation?
@@ -16,7 +17,7 @@ final class DashcamViewModel: NSObject, ObservableObject {
     override init() {
         super.init()
         locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyBest
+        locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
 
         camera.framePublisher
             .sink { [weak self] buffer in self?.recorder.appendFrame(buffer) }
@@ -62,8 +63,12 @@ final class DashcamViewModel: NSObject, ObservableObject {
 }
 
 extension DashcamViewModel: CLLocationManagerDelegate {
-    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    nonisolated func locationManager(_ manager: CLLocationManager,
+                                     didUpdateLocations locations: [CLLocation]) {
         guard let loc = locations.last else { return }
-        Task { @MainActor [weak self] in self?.currentLocation = loc }
+        Task { @MainActor [weak self] in
+            self?.currentLocation = loc
+            self?.navigation.updateLocation(loc)
+        }
     }
 }

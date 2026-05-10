@@ -10,14 +10,18 @@
 		0BD844B7BC5D73B5321F6221 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B7D94C066E4079E6362576 /* CameraManager.swift */; };
 		241FB836EEA296E28DC714C7 /* DashcamViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE3BA4A77142818EF8EA4CC2 /* DashcamViewModel.swift */; };
 		67D4949A72BCE1A046E08BED /* CameraPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A02DCC34E74D68159425139 /* CameraPreview.swift */; };
+		7FB65F13843604D52F589BE5 /* NavigationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC4B17071AB6FB9C762E9D6 /* NavigationManager.swift */; };
 		876C52FD3BBA91FF706975DC /* RollingRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4BEAC602D6251B8FB644368 /* RollingRecorder.swift */; };
 		E37A2E3FEDDD06873347E88D /* GuardianRoadApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9CF94C937C4F885A1F8ED7B /* GuardianRoadApp.swift */; };
 		E61898F4B58168F4A6E76C48 /* DashcamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 268023144BA2D8310C058D16 /* DashcamView.swift */; };
+		E855E5C71FD3AC55B28F1162 /* NavigationOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BBB83D5850FD52CA631005 /* NavigationOverlay.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		01BBB83D5850FD52CA631005 /* NavigationOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationOverlay.swift; sourceTree = "<group>"; };
 		06B7D94C066E4079E6362576 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
 		268023144BA2D8310C058D16 /* DashcamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashcamView.swift; sourceTree = "<group>"; };
+		7FC4B17071AB6FB9C762E9D6 /* NavigationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationManager.swift; sourceTree = "<group>"; };
 		9A02DCC34E74D68159425139 /* CameraPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreview.swift; sourceTree = "<group>"; };
 		AE3BA4A77142818EF8EA4CC2 /* DashcamViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashcamViewModel.swift; sourceTree = "<group>"; };
 		AF898056127126DF11747B9D /* GuardianRoad.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = GuardianRoad.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -31,6 +35,7 @@
 			isa = PBXGroup;
 			children = (
 				742C9E12A4ABE294FF5F0611 /* Camera */,
+				97AEB3653BBBF76C4C692FE8 /* Navigation */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -42,6 +47,14 @@
 				E4BEAC602D6251B8FB644368 /* RollingRecorder.swift */,
 			);
 			path = Camera;
+			sourceTree = "<group>";
+		};
+		97AEB3653BBBF76C4C692FE8 /* Navigation */ = {
+			isa = PBXGroup;
+			children = (
+				7FC4B17071AB6FB9C762E9D6 /* NavigationManager.swift */,
+			);
+			path = Navigation;
 			sourceTree = "<group>";
 		};
 		9A92084D9B9AF5600E7EF2FB /* GuardianRoad */ = {
@@ -61,6 +74,7 @@
 				9A02DCC34E74D68159425139 /* CameraPreview.swift */,
 				268023144BA2D8310C058D16 /* DashcamView.swift */,
 				AE3BA4A77142818EF8EA4CC2 /* DashcamViewModel.swift */,
+				01BBB83D5850FD52CA631005 /* NavigationOverlay.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -144,6 +158,8 @@
 				E61898F4B58168F4A6E76C48 /* DashcamView.swift in Sources */,
 				241FB836EEA296E28DC714C7 /* DashcamViewModel.swift in Sources */,
 				E37A2E3FEDDD06873347E88D /* GuardianRoadApp.swift in Sources */,
+				7FB65F13843604D52F589BE5 /* NavigationManager.swift in Sources */,
+				E855E5C71FD3AC55B28F1162 /* NavigationOverlay.swift in Sources */,
 				876C52FD3BBA91FF706975DC /* RollingRecorder.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

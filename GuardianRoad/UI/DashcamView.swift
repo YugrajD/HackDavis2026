@@ -3,6 +3,7 @@ import SwiftUI
 struct DashcamView: View {
     @StateObject private var vm = DashcamViewModel()
     @State private var pulse = false
+    @State private var showNavSearch = false
 
     var body: some View {
         ZStack {
@@ -14,10 +15,14 @@ struct DashcamView: View {
                 CameraPreview(session: vm.camera.session)
                     .ignoresSafeArea()
                 overlay
+                NavigationOverlay(nav: vm.navigation)
             }
         }
         .onAppear { vm.start() }
         .onDisappear { vm.stop() }
+        .sheet(isPresented: $showNavSearch) {
+            DestinationSearchView(nav: vm.navigation)
+        }
     }
 
     // MARK: - Overlay HUD
@@ -72,6 +77,7 @@ struct DashcamView: View {
 
     private var bottomBar: some View {
         HStack(alignment: .center, spacing: 16) {
+            navButton
             Spacer()
             locationBadge
             saveButton
@@ -81,10 +87,47 @@ struct DashcamView: View {
         .background(.black.opacity(0.6))
     }
 
+    private var navButton: some View {
+        Button {
+            switch vm.navigation.navState {
+            case .idle, .failed:
+                showNavSearch = true
+            default:
+                vm.navigation.stopNavigation()
+            }
+        } label: {
+            Image(systemName: navButtonIcon)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 36, height: 36)
+                .background(navButtonTint, in: Circle())
+        }
+        .animation(.easeInOut(duration: 0.2), value: navButtonTint)
+    }
+
+    private var navButtonIcon: String {
+        switch vm.navigation.navState {
+        case .active, .arrived: return "xmark"
+        case .routing:          return "ellipsis"
+        default:                return "location.fill"
+        }
+    }
+
+    private var navButtonTint: Color {
+        switch vm.navigation.navState {
+        case .routing:          return .orange
+        case .active:           return .blue
+        case .arrived:          return .green
+        default:                return .white.opacity(0.2)
+        }
+    }
+
     private var locationBadge: some View {
         Group {
             if let loc = vm.currentLocation {
-                Text(String(format: "%.4f, %.4f", loc.coordinate.latitude, loc.coordinate.longitude))
+                Text(String(format: "%.4f, %.4f",
+                            loc.coordinate.latitude,
+                            loc.coordinate.longitude))
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(.white.opacity(0.5))
             }
