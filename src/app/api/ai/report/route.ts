@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { PROVIDER_NAMES } from "@/lib/contracts";
 import type { DangerSegment, HazardEvent } from "@/lib/contracts";
-import { handleApiError, jsonError, readJsonBody } from "@/lib/api/responses";
+import { handleApiError, jsonError, readJsonBody, requireJsonObject } from "@/lib/api/responses";
 import { generateSafetyReport, generateSafetyReportWithClaude } from "@/lib/ai/report";
 import { getSponsorConfig } from "@/lib/config/server";
 import { listDangerSegments, listEvents } from "@/lib/db/repository";
@@ -9,11 +9,11 @@ import { resolveDangerSegment } from "@/lib/geo/danger-segments";
 
 export async function POST(request: Request) {
   try {
-    const body = await readJsonBody<{
+    const body = requireJsonObject<{
       segmentId?: string;
       segment?: DangerSegment;
       events?: HazardEvent[];
-    }>(request, { allowEmpty: true, maxBytes: 256 * 1024 });
+    }>(await readJsonBody<unknown>(request, { allowEmpty: true, maxBytes: 256 * 1024 }));
 
     const segments = await listDangerSegments();
     const requestedSegment = body.segmentId ? resolveDangerSegment(segments, body.segmentId) : undefined;

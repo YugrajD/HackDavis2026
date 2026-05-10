@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getImageJsonBodyLimitBytes, sanitizeImageBase64 } from "@/lib/api/media-payload";
-import { readJsonBody, handleApiError } from "@/lib/api/responses";
+import { readJsonBody, handleApiError, requireJsonObject } from "@/lib/api/responses";
 import { getYoloServiceUrl } from "@/lib/config/server";
 import { fetchYoloDetectionsFromService } from "@/lib/perception/yolo-client";
 
@@ -11,7 +11,7 @@ type DetectRequestBody = {
 
 export async function POST(request: Request) {
   try {
-    const body = await readJsonBody<DetectRequestBody>(request, { maxBytes: getImageJsonBodyLimitBytes() });
+    const body = requireJsonObject<DetectRequestBody>(await readJsonBody<unknown>(request, { maxBytes: getImageJsonBodyLimitBytes() }));
     const imageBase64 = sanitizeImageBase64(body.imageBase64, {
       required: true,
       declaredMimeType: body.imageMimeType,
@@ -20,6 +20,8 @@ export async function POST(request: Request) {
     if (!getYoloServiceUrl()) {
       return NextResponse.json(
         {
+          error: "YOLO_SERVICE_URL is not set.",
+          status: 503,
           detections: [],
           width: 0,
           height: 0,
@@ -32,7 +34,7 @@ export async function POST(request: Request) {
     const result = await fetchYoloDetectionsFromService(imageBase64);
     if (!result) {
       return NextResponse.json(
-        { detections: [], width: 0, height: 0, note: "Could not reach YOLO service." },
+        { error: "Could not reach YOLO service.", status: 503, detections: [], width: 0, height: 0, note: "Could not reach YOLO service." },
         { status: 503 },
       );
     }

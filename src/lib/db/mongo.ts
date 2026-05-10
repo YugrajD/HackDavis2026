@@ -15,11 +15,21 @@ export async function getMongoDb(): Promise<Db | null> {
   if (!mongo.uri) return null;
 
   if (!globalThis.guardianRoadMongoClientPromise) {
-    const client = new MongoClient(mongo.uri);
+    const client = new MongoClient(mongo.uri, {
+      connectTimeoutMS: 3_000,
+      serverSelectionTimeoutMS: 3_000,
+      socketTimeoutMS: 10_000,
+    });
     globalThis.guardianRoadMongoClientPromise = client.connect();
   }
 
-  const client = await globalThis.guardianRoadMongoClientPromise;
+  let client: MongoClient;
+  try {
+    client = await globalThis.guardianRoadMongoClientPromise;
+  } catch (error) {
+    globalThis.guardianRoadMongoClientPromise = undefined;
+    throw error;
+  }
   const db = client.db(mongo.dbName);
   await ensureIndexes(db);
   return db;

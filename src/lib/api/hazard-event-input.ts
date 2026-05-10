@@ -1,36 +1,37 @@
 import { ACTOR_TYPES, CONFIDENCE_MAX, CONFIDENCE_MIN, SEVERITY_MAX, SEVERITY_MIN } from "@/lib/contracts";
 import type { ActorType, CameraRole, HazardEvent, HazardType, TrackedObject } from "@/lib/contracts";
-import { cameraRoles, clamp, hazardTypes, isFiniteNumber, isLatitude, isLongitude, safeIdentifier, safeMediaUrl, safeText } from "@/lib/api/validation";
+import { cameraRoles, clamp, hazardTypes, isFiniteNumber, isLatitude, isLongitude, isRecord, safeIdentifier, safeMediaUrl, safeText } from "@/lib/api/validation";
 
 const actorTypes = new Set<ActorType>(ACTOR_TYPES);
 
-export function sanitizeHazardEventInput(input: Partial<HazardEvent>): Partial<HazardEvent> {
+export function sanitizeHazardEventInput(input: unknown): Partial<HazardEvent> {
+  const source = isRecord(input) ? (input as Partial<HazardEvent>) : {};
   const output: Partial<HazardEvent> = {};
 
-  const id = safeIdentifier(input.id);
-  const rideId = safeIdentifier(input.rideId);
-  const spokenAlert = safeText(input.spokenAlert, 160);
-  const explanation = safeText(input.explanation, 800);
-  const clipUrl = safeMediaUrl(input.clipUrl);
-  const thumbnailUrl = safeMediaUrl(input.thumbnailUrl);
+  const id = safeIdentifier(source.id);
+  const rideId = safeIdentifier(source.rideId);
+  const spokenAlert = safeText(source.spokenAlert, 160);
+  const explanation = safeText(source.explanation, 800);
+  const clipUrl = safeMediaUrl(source.clipUrl);
+  const thumbnailUrl = safeMediaUrl(source.thumbnailUrl);
 
   if (id) output.id = id;
   if (rideId) output.rideId = rideId;
-  if (isFiniteNumber(input.t) && input.t >= 0) output.t = input.t;
-  if (typeof input.timestamp === "string" && !Number.isNaN(Date.parse(input.timestamp))) output.timestamp = input.timestamp;
-  if (isHazardType(input.type)) output.type = input.type;
-  if (isFiniteNumber(input.severity)) output.severity = clamp(input.severity, SEVERITY_MIN, SEVERITY_MAX);
-  if (isFiniteNumber(input.confidence)) output.confidence = clamp(input.confidence, CONFIDENCE_MIN, CONFIDENCE_MAX);
-  if (isLatitude(input.lat)) output.lat = input.lat;
-  if (isLongitude(input.lng)) output.lng = input.lng;
-  if (isFiniteNumber(input.headingDeg)) output.headingDeg = ((input.headingDeg % 360) + 360) % 360;
-  if (isFiniteNumber(input.speedMps) && input.speedMps >= 0) output.speedMps = input.speedMps;
-  if (isCameraRole(input.camera)) output.camera = input.camera;
+  if (isFiniteNumber(source.t) && source.t >= 0) output.t = source.t;
+  if (typeof source.timestamp === "string" && !Number.isNaN(Date.parse(source.timestamp))) output.timestamp = source.timestamp;
+  if (isHazardType(source.type)) output.type = source.type;
+  if (isFiniteNumber(source.severity)) output.severity = clamp(source.severity, SEVERITY_MIN, SEVERITY_MAX);
+  if (isFiniteNumber(source.confidence)) output.confidence = clamp(source.confidence, CONFIDENCE_MIN, CONFIDENCE_MAX);
+  if (isLatitude(source.lat)) output.lat = source.lat;
+  if (isLongitude(source.lng)) output.lng = source.lng;
+  if (isFiniteNumber(source.headingDeg)) output.headingDeg = ((source.headingDeg % 360) + 360) % 360;
+  if (isFiniteNumber(source.speedMps) && source.speedMps >= 0) output.speedMps = source.speedMps;
+  if (isCameraRole(source.camera)) output.camera = source.camera;
   if (spokenAlert) output.spokenAlert = spokenAlert;
   if (explanation) output.explanation = explanation;
   if (clipUrl) output.clipUrl = clipUrl;
   if (thumbnailUrl) output.thumbnailUrl = thumbnailUrl;
-  if (Array.isArray(input.objects)) output.objects = input.objects.slice(0, 25).filter(isTrackedObjectLike).map(sanitizeTrackedObject);
+  if (Array.isArray(source.objects)) output.objects = source.objects.slice(0, 25).filter(isTrackedObjectLike).map(sanitizeTrackedObject);
 
   return output;
 }

@@ -6,6 +6,7 @@ import { generateScenarioResponse } from "@/lib/scenarios/road-scenarios";
 type ScenarioJobStore = Map<string, ScenarioJob>;
 
 const MAX_JOBS = 50;
+const JOB_TTL_MS = 15 * 60 * 1000;
 
 const globalScenarioJobs = globalThis as typeof globalThis & {
   guardianRoadScenarioJobs?: ScenarioJobStore;
@@ -30,12 +31,19 @@ export function createScenarioJob(input: ScenarioPrompt, origin: string) {
   };
 
   jobs.set(id, job);
+  scheduleJobCleanup(id);
   setTimeout(() => runScenarioJob(id), 0);
   return job;
 }
 
 export function getScenarioJob(id: string) {
-  return jobs.get(id);
+  const job = jobs.get(id);
+  if (!job) return undefined;
+  if (isExpired(job)) {
+    jobs.delete(id);
+    return undefined;
+  }
+  return job;
 }
 
 function runScenarioJob(id: string) {
@@ -81,9 +89,27 @@ function normalizeScenarioJobInput(input: ScenarioPrompt = {}): ScenarioPrompt {
 }
 
 function trimOldJobs() {
+  for (const [id, job] of jobs) {
+    if (isExpired(job)) jobs.delete(id);
+  }
+
   while (jobs.size >= MAX_JOBS) {
     const oldestJobId = jobs.keys().next().value;
     if (!oldestJobId) return;
     jobs.delete(oldestJobId);
   }
+}
+
+function scheduleJobCleanup(id: string) {
+  const timer = setTimeout(() => {
+    const job = jobs.get(id);
+    if (job && isExpired(job)) jobs.delete(id);
+  }, JOB_TTL_MS + 1_000);
+
+  if (typeof timer === "object" && "unref" in timer) timer.unref();
+}
+
+function isExpired(job: ScenarioJob) {
+  const createdAt = Date.parse(job.createdAt);
+  return Number.isFinite(createdAt) && Date.now() - createdAt > JOB_TTL_MS;
 }

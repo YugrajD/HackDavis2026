@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { getImageJsonBodyLimitBytes, sanitizeImageBase64 } from "@/lib/api/media-payload";
 import { sanitizePerceptionResult } from "@/lib/api/perception-input";
-import { readJsonBody, handleApiError } from "@/lib/api/responses";
+import { readJsonBody, handleApiError, requireJsonObject } from "@/lib/api/responses";
 import { cameraRoles, isFiniteNumber, isLatitude, isLongitude, safeIdentifier, safeMediaUrl } from "@/lib/api/validation";
 import { analyzeAndPersistMedia, type AnalyzeAndPersistMediaInput } from "@/lib/media/gemini-mongo";
 
 export async function POST(request: Request) {
   try {
-    const body = await readJsonBody<AnalyzeAndPersistMediaInput>(request, { maxBytes: getImageJsonBodyLimitBytes() });
+    const body = requireJsonObject<AnalyzeAndPersistMediaInput>(await readJsonBody<unknown>(request, { maxBytes: getImageJsonBodyLimitBytes() }));
     const result = await analyzeAndPersistMedia(sanitizeAnalyzeAndPersistInput(body));
 
     return NextResponse.json(

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readJsonBody, handleApiError } from "@/lib/api/responses";
+import { readJsonBody, handleApiError, requireJsonObject } from "@/lib/api/responses";
 import { sanitizePerceptionResult } from "@/lib/api/perception-input";
 import { cameraRoles, isFiniteNumber, isLatitude, isLongitude } from "@/lib/api/validation";
 import { analyzeFrameStub, analyzeFrameWithGemini, type AnalyzeFrameInput } from "@/lib/ai/hazard-analysis";
@@ -8,7 +8,7 @@ import { PROVIDER_NAMES } from "@/lib/contracts";
 
 export async function POST(request: Request) {
   try {
-    const body = await readJsonBody<AnalyzeFrameInput>(request, { maxBytes: 1024 * 1024 });
+    const body = requireJsonObject<AnalyzeFrameInput>(await readJsonBody<unknown>(request, { maxBytes: 1024 * 1024 }));
     const input = sanitizeAnalyzeFrameInput(body);
 
     const { gemini } = getSponsorConfig();

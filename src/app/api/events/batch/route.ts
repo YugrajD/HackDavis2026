@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { HazardEvent } from "@/lib/contracts";
-import { jsonError, readJsonBody, handleApiError } from "@/lib/api/responses";
+import { jsonError, readJsonBody, handleApiError, requireJsonObject } from "@/lib/api/responses";
 import { sanitizeHazardEventInput } from "@/lib/api/hazard-event-input";
 import { createEvents } from "@/lib/db/repository";
 
@@ -8,7 +8,7 @@ const MAX_BATCH_EVENTS = 100;
 
 export async function POST(request: Request) {
   try {
-    const body = await readJsonBody<{ events?: Partial<HazardEvent>[] }>(request, { maxBytes: 512 * 1024 });
+    const body = requireJsonObject<{ events?: Partial<HazardEvent>[] }>(await readJsonBody<unknown>(request, { maxBytes: 512 * 1024 }));
 
     if (!Array.isArray(body.events)) {
       return jsonError("events must be an array", 400);

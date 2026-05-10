@@ -1,6 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { withProviderTimeout } from "@/lib/api/provider-timeout";
 import type { DangerSegment, HazardEvent, SafetyReport } from "@/lib/contracts";
 import { getSponsorConfig } from "@/lib/config/server";
+
+const CLAUDE_TIMEOUT_MS = 15_000;
 
 export function generateSafetyReport(segment: DangerSegment, events: HazardEvent[]): SafetyReport {
   const topType = segment.topTypes[0]?.replaceAll("_", " ") ?? "road hazard";
@@ -27,7 +30,7 @@ export async function generateSafetyReportWithClaude(segment: DangerSegment, eve
   if (!anthropicConfig.apiKey) return null;
 
   const anthropic = new Anthropic({ apiKey: anthropicConfig.apiKey });
-  const message = await anthropic.messages.create({
+  const message = await withProviderTimeout(anthropic.messages.create({
     model: anthropicConfig.model,
     max_tokens: 900,
     temperature: 0.2,
@@ -45,7 +48,7 @@ Related events:
 ${JSON.stringify(events.map(compactEvent), null, 2)}`,
       },
     ],
-  });
+  }), "Claude", CLAUDE_TIMEOUT_MS);
 
   const text = message.content.map((block) => (block.type === "text" ? block.text : "")).join("\n");
   return normalizeReport(parseJsonObject(text), segment, events);

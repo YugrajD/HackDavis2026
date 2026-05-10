@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI, SchemaType, type ResponseSchema } from "@google/generative-ai";
 import { ACTOR_TYPES, CONFIDENCE_MAX, CONFIDENCE_MIN, HAZARD_TYPES, SEVERITY_MAX, SEVERITY_MIN } from "@/lib/contracts";
 import type { ActorType, CameraRole, HazardEvent, HazardType, PerceptionResult, TrackedObject, TrackState } from "@/lib/contracts";
+import { withProviderTimeout } from "@/lib/api/provider-timeout";
 import { getSponsorConfig } from "@/lib/config/server";
 
 export type AnalyzeFrameInput = {
@@ -17,6 +18,8 @@ export type AnalyzeFrameOutput = Pick<
   HazardEvent,
   "type" | "severity" | "confidence" | "spokenAlert" | "explanation" | "objects"
 >;
+
+const GEMINI_TIMEOUT_MS = 12_000;
 
 const hazardSchema: ResponseSchema = {
   type: SchemaType.OBJECT,
@@ -107,7 +110,7 @@ export async function analyzeFrameWithGemini(input: AnalyzeFrameInput): Promise<
     },
   });
 
-  const result = await model.generateContent([
+  const result = await withProviderTimeout(model.generateContent([
     {
       text: `Analyze this road-safety frame from a Guardian Road phone sensor. Return only JSON matching the schema.
 Context:
@@ -122,7 +125,7 @@ Use the allowed hazard types exactly: ${HAZARD_TYPES.join(", ")}.
 Score severity by near-term rider/driver risk. Treat local perception as a tracking prior, but override it when the image contradicts it. Keep spokenAlert short enough for real-time voice playback. If no clear hazard is visible, return road_obstruction with low severity and low confidence rather than inventing a specific object.`,
     },
     { inlineData: image },
-  ]);
+  ]), "Gemini", GEMINI_TIMEOUT_MS);
 
   const parsed = parseJsonObject(result.response.text());
   return normalizeAnalysis(parsed, input);

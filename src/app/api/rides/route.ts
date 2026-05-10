@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { RideMode } from "@/lib/contracts";
-import { readJsonBody, jsonError, handleApiError } from "@/lib/api/responses";
+import { readJsonBody, jsonError, handleApiError, requireJsonObject } from "@/lib/api/responses";
 import { isLatitude, isLongitude, rideModes } from "@/lib/api/validation";
 import { createRide, listRides } from "@/lib/db/repository";
 
@@ -10,7 +10,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await readJsonBody<{ mode?: RideMode; startLat?: number; startLng?: number }>(request, { maxBytes: 32 * 1024 });
+    const body = requireJsonObject<{ mode?: RideMode; startLat?: number; startLng?: number }>(await readJsonBody<unknown>(request, { maxBytes: 32 * 1024 }));
 
     if (!body.mode || !rideModes.has(body.mode)) {
       return jsonError("mode must be bike, scooter, or car", 400);

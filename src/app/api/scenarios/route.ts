@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { PROVIDER_NAMES } from "@/lib/contracts";
 import type { ScenarioPrompt } from "@/lib/contracts";
-import { handleApiError, readJsonBody } from "@/lib/api/responses";
+import { handleApiError, readJsonBody, requireJsonObject } from "@/lib/api/responses";
 import { generateScenarioResponse, scenarioPresets } from "@/lib/scenarios/road-scenarios";
 
 export async function GET() {
@@ -18,7 +18,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const input = await readJsonBody<ScenarioPrompt>(request, { allowEmpty: true, maxBytes: 32 * 1024 });
+    const input = requireJsonObject<ScenarioPrompt>(await readJsonBody<unknown>(request, { allowEmpty: true, maxBytes: 32 * 1024 }));
     const prompts = Array.isArray(input.prompts) ? input.prompts.filter((prompt): prompt is string => typeof prompt === "string").slice(0, 12) : [];
 
     if (prompts.length) {

@@ -1,13 +1,13 @@
 import { Buffer } from "node:buffer";
 import { NextResponse } from "next/server";
-import { readJsonBody, handleApiError } from "@/lib/api/responses";
+import { readJsonBody, handleApiError, requireJsonObject } from "@/lib/api/responses";
 import { safeText } from "@/lib/api/validation";
 import { getSponsorConfig } from "@/lib/config/server";
 import { PROVIDER_NAMES } from "@/lib/contracts";
 
 export async function POST(request: Request) {
   try {
-    const body = await readJsonBody<{ text?: string }>(request, { allowEmpty: true, maxBytes: 16 * 1024 });
+    const body = requireJsonObject<{ text?: string }>(await readJsonBody<unknown>(request, { allowEmpty: true, maxBytes: 16 * 1024 }));
     const text = safeText(body.text, 500) || "Road hazard ahead.";
 
     const { elevenLabs } = getSponsorConfig();
@@ -65,6 +65,7 @@ async function generateElevenLabsAlert(text: string) {
         use_speaker_boost: true,
       },
     }),
+    signal: AbortSignal.timeout(12_000),
   });
 
   if (!response.ok) {

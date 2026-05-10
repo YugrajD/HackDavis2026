@@ -89,6 +89,7 @@ async function runCase(smokeCase) {
 
   assert(smokeCase.statuses.includes(response.status), `${smokeCase.name} returned ${response.status}, expected ${smokeCase.statuses.join(" or ")}`);
   assert(payload && typeof payload.error === "string" && payload.error.trim().length > 0, `${smokeCase.name} did not return a JSON error field`);
+  assert(payload.status === response.status, `${smokeCase.name} did not mirror HTTP status in the error envelope`);
 
   console.log(`ok ${smokeCase.name}: ${response.status} ${payload.error}`);
 }
