@@ -36,6 +36,10 @@ export function sanitizeHazardEventInput(input: unknown): Partial<HazardEvent> {
   return output;
 }
 
+export function hasHazardEventInputFields(input: Partial<HazardEvent>) {
+  return Object.keys(input).length > 0;
+}
+
 function isHazardType(value: unknown): value is HazardType {
   return typeof value === "string" && hazardTypes.has(value as HazardType);
 }

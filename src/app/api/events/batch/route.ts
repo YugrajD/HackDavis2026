@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { HazardEvent } from "@/lib/contracts";
 import { jsonError, readJsonBody, handleApiError, requireJsonObject } from "@/lib/api/responses";
-import { sanitizeHazardEventInput } from "@/lib/api/hazard-event-input";
+import { hasHazardEventInputFields, sanitizeHazardEventInput } from "@/lib/api/hazard-event-input";
 import { createEvents } from "@/lib/db/repository";
 
 const MAX_BATCH_EVENTS = 100;
@@ -18,7 +18,13 @@ export async function POST(request: Request) {
       return jsonError(`events batch cannot exceed ${MAX_BATCH_EVENTS} items`, 413);
     }
 
-    const { value: events, persisted } = await createEvents(body.events.map(sanitizeHazardEventInput));
+    const inputs = body.events.map(sanitizeHazardEventInput);
+    const invalidIndex = inputs.findIndex((input) => !hasHazardEventInputFields(input));
+    if (invalidIndex !== -1) {
+      return jsonError(`Event at index ${invalidIndex} must include at least one valid hazard event field.`, 400);
+    }
+
+    const { value: events, persisted } = await createEvents(inputs);
     return NextResponse.json({ events, persisted }, { status: 201 });
   } catch (error) {
     return handleApiError(error, "Create events batch failed.");

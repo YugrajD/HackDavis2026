@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { HazardEvent } from "@/lib/contracts";
-import { readJsonBody, handleApiError } from "@/lib/api/responses";
-import { sanitizeHazardEventInput } from "@/lib/api/hazard-event-input";
+import { handleApiError, jsonError, readJsonBody, requireJsonObject } from "@/lib/api/responses";
+import { hasHazardEventInputFields, sanitizeHazardEventInput } from "@/lib/api/hazard-event-input";
 import { parseEventFilters } from "@/lib/api/validation";
 import { createEvent, listEvents } from "@/lib/db/repository";
 
@@ -12,8 +12,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const body = await readJsonBody<Partial<HazardEvent>>(request, { maxBytes: 128 * 1024 });
-    const { value: event, persisted } = await createEvent(sanitizeHazardEventInput(body));
+    const body = requireJsonObject<Partial<HazardEvent>>(await readJsonBody<unknown>(request, { maxBytes: 128 * 1024 }));
+    const input = sanitizeHazardEventInput(body);
+    if (!hasHazardEventInputFields(input)) {
+      return jsonError("Event payload must include at least one valid hazard event field.", 400);
+    }
+
+    const { value: event, persisted } = await createEvent(input);
 
     return NextResponse.json(
       {
