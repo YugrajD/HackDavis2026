@@ -76,22 +76,25 @@ export default function Page() {
             <Logo size={26} />
           </a>
 
-          <div className="liquid-glass hidden h-12 items-center gap-7 rounded-full px-7 md:flex">
+          <div
+            className="nav-pill liquid-glass hidden h-12 items-center gap-7 rounded-full px-7 md:flex"
+            data-augen-pill
+          >
             <a
               href="#pipeline"
-              className="text-[14px] tracking-[-0.011em] text-polar-white/85 transition-colors duration-150 hover:text-polar-white"
+              className="nav-link text-[14px] font-light tracking-[-0.011em] text-polar-white"
             >
               Pipeline
             </a>
             <a
               href="#product"
-              className="text-[14px] tracking-[-0.011em] text-polar-white/85 transition-colors duration-150 hover:text-polar-white"
+              className="nav-link text-[14px] font-light tracking-[-0.011em] text-polar-white"
             >
               Product
             </a>
             <a
               href="#flow"
-              className="text-[14px] tracking-[-0.011em] text-polar-white/85 transition-colors duration-150 hover:text-polar-white"
+              className="nav-link text-[14px] font-light tracking-[-0.011em] text-polar-white"
             >
               Flow
             </a>
@@ -99,7 +102,7 @@ export default function Page() {
               href="https://github.com/YugrajD/HackDavis2026"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-[14px] tracking-[-0.011em] text-polar-white/85 transition-colors duration-150 hover:text-polar-white"
+              className="nav-link inline-flex items-center gap-1.5 text-[14px] font-light tracking-[-0.011em] text-polar-white"
             >
               GitHub
               <span aria-hidden className="text-[12px]">↗</span>

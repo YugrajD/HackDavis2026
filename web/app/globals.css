@@ -61,12 +61,91 @@ html, body {
     0 2px 6px -2px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(22px) saturate(160%);
   -webkit-backdrop-filter: blur(22px) saturate(160%);
+  transition:
+    background 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    backdrop-filter 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @supports not (backdrop-filter: blur(1px)) {
   .liquid-glass {
     background: rgba(20, 20, 22, 0.92);
   }
+}
+
+/* Augen-style nav hover: when the user lands on the pill, sibling links
+ * dim so the focused one reads first. CSS-only via :has(). */
+.nav-pill .nav-link {
+  opacity: 0.55;
+  transition:
+    opacity 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.nav-pill:not(:hover) .nav-link {
+  opacity: 0.92;
+}
+
+.nav-pill:hover .nav-link {
+  opacity: 0.32;
+}
+
+.nav-pill .nav-link:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+/* When the nav is being hovered, deepen its glass — heavier blur + brighter
+ * border, so the rest of the page reads as the secondary layer. */
+.nav-pill:hover {
+  background: rgba(20, 20, 22, 0.55);
+  border-color: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(34px) saturate(180%);
+  -webkit-backdrop-filter: blur(34px) saturate(180%);
+}
+
+/* When you actively hover the nav, the entire page surface behind it picks
+ * up a faint dim so the glass pops. Implemented as a fixed pseudo overlay
+ * triggered by :has() on the document. */
+body:has(.nav-pill:hover)::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 8, 8, 0.32);
+  pointer-events: none;
+  z-index: 20;
+  animation: augen-dim 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes augen-dim {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Underline reveal on hover for the focused link — augen-style fine line. */
+.nav-pill .nav-link {
+  position: relative;
+}
+
+.nav-pill .nav-link::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 0;
+  height: 1px;
+  background: rgba(231, 197, 154, 0.85);
+  transition:
+    width 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    left 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nav-pill .nav-link:hover::after {
+  width: 80%;
+  left: 10%;
 }
 
 @media (prefers-reduced-motion: reduce) {
