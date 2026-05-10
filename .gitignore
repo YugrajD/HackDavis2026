@@ -34,3 +34,4 @@ pnpm-debug.log*
 /public/generated/uploads/
 /public/generated/reports/
 /public/generated/scenarios/
+dist

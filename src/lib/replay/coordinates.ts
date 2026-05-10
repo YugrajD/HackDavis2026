@@ -46,6 +46,27 @@ export function latLngToMeters(lat: number, lng: number, originLat: number, orig
   };
 }
 
+export function routePointToMeters(point: RoutePoint, origin: RoutePoint): MeterPoint {
+  return latLngToMeters(point.lat, point.lng, origin.lat, origin.lng);
+}
+
+export function eventToMeters(event: HazardEvent, origin: RoutePoint): MeterPoint {
+  return latLngToMeters(event.lat, event.lng, origin.lat, origin.lng);
+}
+
+export function headingToForward(headingDeg: number): MeterPoint {
+  const radians = (headingDeg * Math.PI) / 180;
+  return {
+    x: Math.sin(radians),
+    z: -Math.cos(radians),
+  };
+}
+
+export function headingToRotationY(headingDeg: number): number {
+  const forward = headingToForward(headingDeg);
+  return Math.atan2(forward.x, forward.z);
+}
+
 export function interpolateRoutePoint(route: RoutePoint[], t: number): RoutePoint | null {
   if (route.length === 0) return null;
   if (route.length === 1 || t <= route[0].t) return route[0];
@@ -115,7 +136,6 @@ export function projectReplayPayload(payload: ReplayPayload): ProjectedReplay {
   const toScreen = (meters: MeterPoint): ScreenPoint => {
     const boundedWidth = Math.max(bounds.maxX - bounds.minX, 1);
     const boundedHeight = Math.max(bounds.maxZ - bounds.minZ, 1);
-
     return {
       ...meters,
       xPct: ((meters.x - bounds.minX) / boundedWidth) * 100,

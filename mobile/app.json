@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Guardian Road",
+    "slug": "guardian-road",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#05070a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.guardianroad.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Guardian Road uses the camera to detect shared-road hazards in rider and driver modes.",
+        "NSMicrophoneUsageDescription": "Required by the camera framework."
+      }
+    },
+    "android": {
+      "package": "app.guardianroad.mobile",
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#05070a"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "Guardian Road uses the camera to detect shared-road hazards in rider and driver modes.",
+          "enableMicrophonePermission": false
+        }
+      ],
+      "expo-asset",
+      "react-native-fast-tflite"
+    ]
+  }
+}

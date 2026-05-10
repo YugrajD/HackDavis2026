@@ -58,7 +58,7 @@ Landing/control page with demo controls:
 
 ### 2. Rider/driver capture
 
-May be implemented as a mobile PWA first:
+Implement as a React Native + Expo prebuild mobile app:
 - camera preview
 - hazard overlay
 - risk score
