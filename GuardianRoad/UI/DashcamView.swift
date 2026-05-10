@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 
 struct DashcamView: View {
     @StateObject private var vm = DashcamViewModel()
@@ -6,6 +7,9 @@ struct DashcamView: View {
     @State private var showNavSearch = false
     @State private var showGallery = false
     @State private var previewSize: CGSize = .zero
+    @State private var pipHidden = false
+    @State private var pipScale: CGFloat = 1
+    @Namespace private var camNamespace
 
     var body: some View {
         ZStack {
@@ -15,10 +19,22 @@ struct DashcamView: View {
                 permissionDeniedView
             } else {
                 GeometryReader { geo in
-                    ZStack {
-                        CameraPreview(session: vm.camera.session)
+                    ZStack(alignment: .topTrailing) {
+                        CameraPreview(layer: mainPreviewLayer)
                             .ignoresSafeArea()
+                            .matchedGeometryEffect(id: "main-\(vm.camera.activeCamera == .back ? "back" : "front")",
+                                                   in: camNamespace)
                         detectionOverlay(in: geo.size)
+                        if vm.camera.hasFrontCamera && !pipHidden {
+                            pipView
+                                .padding(.top, 60)
+                                .padding(.trailing, 14)
+                        } else if vm.camera.hasFrontCamera && pipHidden {
+                            restorePipChip
+                                .padding(.top, 60)
+                                .padding(.trailing, 14)
+                                .transition(.scale.combined(with: .opacity))
+                        }
                     }
                     .onAppear { previewSize = geo.size }
                     .onChange(of: geo.size) { _, newSize in previewSize = newSize }
@@ -36,6 +52,67 @@ struct DashcamView: View {
         .fullScreenCover(isPresented: $showGallery) {
             GalleryView()
         }
+    }
+
+    // MARK: - Camera feeds (multicam)
+
+    private var mainPreviewLayer: AVFoundation.AVCaptureVideoPreviewLayer {
+        vm.camera.activeCamera == .back ? vm.camera.backPreviewLayer : vm.camera.frontPreviewLayer
+    }
+
+    private var pipPreviewLayer: AVFoundation.AVCaptureVideoPreviewLayer {
+        vm.camera.activeCamera == .back ? vm.camera.frontPreviewLayer : vm.camera.backPreviewLayer
+    }
+
+    private var restorePipChip: some View {
+        Button {
+            withAnimation(.spring(duration: 0.45, bounce: 0.2)) { pipHidden = false }
+        } label: {
+            Image(systemName: vm.camera.activeCamera == .back ? "person.crop.rectangle" : "car.rear")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 38, height: 38)
+                .background(.ultraThinMaterial, in: Circle())
+                .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 1))
+        }
+    }
+
+    private var pipView: some View {
+        CameraPreview(layer: pipPreviewLayer)
+            .frame(width: 116, height: 156)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color.white.opacity(0.35), lineWidth: 1.2)
+            )
+            .overlay(alignment: .topLeading) {
+                Image(systemName: "arrow.left.arrow.right")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(5)
+                    .background(.black.opacity(0.55), in: Circle())
+                    .padding(6)
+            }
+            .shadow(color: .black.opacity(0.4), radius: 8, x: 0, y: 3)
+            .scaleEffect(pipScale)
+            .matchedGeometryEffect(id: "pip-\(vm.camera.activeCamera == .back ? "front" : "back")",
+                                   in: camNamespace)
+            .transition(.scale.combined(with: .opacity))
+            .onTapGesture {
+                withAnimation(.spring(duration: 0.45, bounce: 0.25)) {
+                    let next: AVCaptureDevice.Position = (vm.camera.activeCamera == .back) ? .front : .back
+                    vm.camera.setActiveCamera(next)
+                }
+            }
+            .onLongPressGesture(minimumDuration: 0.4) {
+                withAnimation(.spring(duration: 0.4)) { pipHidden = true }
+                let haptic = UIImpactFeedbackGenerator(style: .medium)
+                haptic.impactOccurred()
+            } onPressingChanged: { pressing in
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    pipScale = pressing ? 0.92 : 1
+                }
+            }
     }
 
     // MARK: - Overlay HUD

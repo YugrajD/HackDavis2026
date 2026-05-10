@@ -2,12 +2,24 @@ import AVFoundation
 import Combine
 import UIKit
 
+/// Dual-camera capture using `AVCaptureMultiCamSession` (iPhone XS / A12 +).
+/// Both back + front cameras stream simultaneously; `activeCamera` controls
+/// which feed is forwarded to the ML loop and rolling recorder.
 final class CameraManager: NSObject, ObservableObject {
-    let session = AVCaptureSession()
+    let session: AVCaptureSession
+    let backPreviewLayer: AVCaptureVideoPreviewLayer
+    let frontPreviewLayer: AVCaptureVideoPreviewLayer
+
+    @Published var isRunning = false
+    @Published var isConfiguring = false
+    @Published var permissionDenied = false
+    @Published var hasFrontCamera = false
+    @Published var activeCamera: AVCaptureDevice.Position = .back
 
     private let sessionQueue = DispatchQueue(label: "camera.session", qos: .userInteractive)
     private let outputQueue = DispatchQueue(label: "camera.output", qos: .userInteractive)
-    private let videoOutput = AVCaptureVideoDataOutput()
+    private let backOutput = AVCaptureVideoDataOutput()
+    private let frontOutput = AVCaptureVideoDataOutput()
     private let audioOutput = AVCaptureAudioDataOutput()
 
     private let frameSubject = PassthroughSubject<CMSampleBuffer, Never>()
@@ -16,12 +28,20 @@ final class CameraManager: NSObject, ObservableObject {
     var framePublisher: AnyPublisher<CMSampleBuffer, Never> { frameSubject.eraseToAnyPublisher() }
     var audioPublisher: AnyPublisher<CMSampleBuffer, Never> { audioSubject.eraseToAnyPublisher() }
 
-    @Published var isRunning = false
-    @Published var isConfiguring = false
-    @Published var permissionDenied = false
-
     override init() {
+        let s: AVCaptureSession = AVCaptureMultiCamSession.isMultiCamSupported
+            ? AVCaptureMultiCamSession()
+            : AVCaptureSession()
+        self.session = s
+        // Use `sessionWithNoConnection:` so each layer knows its session up front
+        // (required for multicam), but doesn't auto-create a connection — we
+        // wire connections explicitly so each preview is bound to one camera.
+        self.backPreviewLayer = AVCaptureVideoPreviewLayer(sessionWithNoConnection: s)
+        self.frontPreviewLayer = AVCaptureVideoPreviewLayer(sessionWithNoConnection: s)
         super.init()
+        backPreviewLayer.videoGravity = .resizeAspectFill
+        frontPreviewLayer.videoGravity = .resizeAspectFill
+
         NotificationCenter.default.addObserver(
             forName: .AVCaptureSessionWasInterrupted, object: session, queue: .main
         ) { [weak self] _ in self?.isRunning = false }
@@ -43,6 +63,8 @@ final class CameraManager: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - Public API
+
     func requestPermissionsAndSetup() {
         DispatchQueue.main.async { self.isConfiguring = true }
         AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
@@ -57,44 +79,6 @@ final class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    private func setupSession() {
-        try? AVAudioSession.sharedInstance().setCategory(
-            .playAndRecord, mode: .default,
-            options: [.mixWithOthers, .defaultToSpeaker]
-        )
-        try? AVAudioSession.sharedInstance().setActive(true)
-
-        session.beginConfiguration()
-        session.sessionPreset = .hd1920x1080
-
-        guard
-            let videoDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
-            let videoInput = try? AVCaptureDeviceInput(device: videoDevice),
-            session.canAddInput(videoInput)
-        else {
-            session.commitConfiguration()
-            return
-        }
-        session.addInput(videoInput)
-
-        if let audioDevice = AVCaptureDevice.default(for: .audio),
-           let audioInput = try? AVCaptureDeviceInput(device: audioDevice),
-           session.canAddInput(audioInput) {
-            session.addInput(audioInput)
-        }
-
-        videoOutput.setSampleBufferDelegate(self, queue: outputQueue)
-        videoOutput.alwaysDiscardsLateVideoFrames = true
-        if session.canAddOutput(videoOutput) { session.addOutput(videoOutput) }
-
-        audioOutput.setSampleBufferDelegate(self, queue: outputQueue)
-        if session.canAddOutput(audioOutput) { session.addOutput(audioOutput) }
-
-        session.commitConfiguration()
-        session.startRunning()
-        DispatchQueue.main.async { self.isRunning = true; self.isConfiguring = false }
-    }
-
     func stop() {
         sessionQueue.async { [weak self] in
             guard let self, self.session.isRunning else { return }
@@ -102,13 +86,170 @@ final class CameraManager: NSObject, ObservableObject {
             DispatchQueue.main.async { self.isRunning = false }
         }
     }
+
+    /// Switch which camera's frames are sent to the perception loop and recorder.
+    func setActiveCamera(_ position: AVCaptureDevice.Position) {
+        DispatchQueue.main.async { self.activeCamera = position }
+    }
+
+    // MARK: - Setup
+
+    private func setupSession() {
+        try? AVAudioSession.sharedInstance().setCategory(
+            .playAndRecord, mode: .default,
+            options: [.mixWithOthers, .defaultToSpeaker]
+        )
+        try? AVAudioSession.sharedInstance().setActive(true)
+
+        if let multi = session as? AVCaptureMultiCamSession {
+            setupMultiCam(multi)
+        } else {
+            setupSingleCam()
+        }
+
+        session.startRunning()
+        DispatchQueue.main.async { self.isRunning = true; self.isConfiguring = false }
+    }
+
+    private func setupMultiCam(_ session: AVCaptureMultiCamSession) {
+        session.beginConfiguration()
+        defer { session.commitConfiguration() }
+
+        // ─── Back camera ───
+        guard let backDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+              let backInput = try? AVCaptureDeviceInput(device: backDevice),
+              session.canAddInput(backInput) else { return }
+        // Pick a multicam-compatible format up front — the device's default
+        // 1080p/30 may exceed the multicam cost budget and silently refuse to
+        // start, leaving both previews black.
+        Self.applyMultiCamFormat(to: backDevice)
+        session.addInputWithNoConnections(backInput)
+
+        backOutput.setSampleBufferDelegate(self, queue: outputQueue)
+        backOutput.alwaysDiscardsLateVideoFrames = true
+        guard session.canAddOutput(backOutput) else { return }
+        session.addOutputWithNoConnections(backOutput)
+
+        guard let backVideoPort = backInput.ports(for: .video,
+                                                  sourceDeviceType: backDevice.deviceType,
+                                                  sourceDevicePosition: .back).first else { return }
+        let backOutConn = AVCaptureConnection(inputPorts: [backVideoPort], output: backOutput)
+        if session.canAddConnection(backOutConn) { session.addConnection(backOutConn) }
+
+        let backPreviewConn = AVCaptureConnection(inputPort: backVideoPort, videoPreviewLayer: backPreviewLayer)
+        if session.canAddConnection(backPreviewConn) { session.addConnection(backPreviewConn) }
+
+        // ─── Front camera ───
+        if let frontDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front),
+           let frontInput = try? AVCaptureDeviceInput(device: frontDevice),
+           session.canAddInput(frontInput) {
+            Self.applyMultiCamFormat(to: frontDevice)
+            session.addInputWithNoConnections(frontInput)
+
+            frontOutput.setSampleBufferDelegate(self, queue: outputQueue)
+            frontOutput.alwaysDiscardsLateVideoFrames = true
+            if session.canAddOutput(frontOutput) {
+                session.addOutputWithNoConnections(frontOutput)
+
+                if let frontVideoPort = frontInput.ports(for: .video,
+                                                         sourceDeviceType: frontDevice.deviceType,
+                                                         sourceDevicePosition: .front).first {
+                    let frontOutConn = AVCaptureConnection(inputPorts: [frontVideoPort], output: frontOutput)
+                    if session.canAddConnection(frontOutConn) { session.addConnection(frontOutConn) }
+
+                    let frontPreviewConn = AVCaptureConnection(inputPort: frontVideoPort,
+                                                                videoPreviewLayer: frontPreviewLayer)
+                    if session.canAddConnection(frontPreviewConn) { session.addConnection(frontPreviewConn) }
+
+                    DispatchQueue.main.async { self.hasFrontCamera = true }
+                }
+            }
+        }
+
+        // ─── Audio (single shared input) ───
+        if let audioDevice = AVCaptureDevice.default(for: .audio),
+           let audioInput = try? AVCaptureDeviceInput(device: audioDevice),
+           session.canAddInput(audioInput) {
+            session.addInputWithNoConnections(audioInput)
+            audioOutput.setSampleBufferDelegate(self, queue: outputQueue)
+            if session.canAddOutput(audioOutput) {
+                session.addOutputWithNoConnections(audioOutput)
+                if let audioPort = audioInput.ports(for: .audio,
+                                                     sourceDeviceType: nil,
+                                                     sourceDevicePosition: .unspecified).first {
+                    let audioConn = AVCaptureConnection(inputPorts: [audioPort], output: audioOutput)
+                    if session.canAddConnection(audioConn) { session.addConnection(audioConn) }
+                }
+            }
+        }
+    }
+
+    /// Pick a multicam-supported format for `device`, preferring 720p (cheap,
+    /// fits the multicam cost budget on every supported device) and falling
+    /// back to the smallest multicam-supported format otherwise.
+    private static func applyMultiCamFormat(to device: AVCaptureDevice) {
+        let multiCamFormats = device.formats.filter { $0.isMultiCamSupported }
+        guard !multiCamFormats.isEmpty else { return }
+        let preferred = multiCamFormats.first(where: { format in
+            let dim = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
+            return dim.width == 1280 && dim.height == 720
+        }) ?? multiCamFormats.min(by: { lhs, rhs in
+            let l = CMVideoFormatDescriptionGetDimensions(lhs.formatDescription)
+            let r = CMVideoFormatDescriptionGetDimensions(rhs.formatDescription)
+            return Int64(l.width) * Int64(l.height) < Int64(r.width) * Int64(r.height)
+        })
+        guard let chosen = preferred else { return }
+        do {
+            try device.lockForConfiguration()
+            device.activeFormat = chosen
+            device.unlockForConfiguration()
+        } catch {
+            // Best-effort; if locking fails the device keeps its default format.
+        }
+    }
+
+    /// Fallback for devices without multicam support — back camera only.
+    private func setupSingleCam() {
+        session.beginConfiguration()
+        session.sessionPreset = .hd1920x1080
+
+        guard let backDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+              let backInput = try? AVCaptureDeviceInput(device: backDevice),
+              session.canAddInput(backInput) else {
+            session.commitConfiguration()
+            return
+        }
+        session.addInput(backInput)
+
+        if let audioDevice = AVCaptureDevice.default(for: .audio),
+           let audioInput = try? AVCaptureDeviceInput(device: audioDevice),
+           session.canAddInput(audioInput) {
+            session.addInput(audioInput)
+        }
+
+        backOutput.setSampleBufferDelegate(self, queue: outputQueue)
+        backOutput.alwaysDiscardsLateVideoFrames = true
+        if session.canAddOutput(backOutput) { session.addOutput(backOutput) }
+
+        audioOutput.setSampleBufferDelegate(self, queue: outputQueue)
+        if session.canAddOutput(audioOutput) { session.addOutput(audioOutput) }
+
+        backPreviewLayer.session = session
+        session.commitConfiguration()
+    }
 }
 
+// MARK: - Sample buffer routing
+
 extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudioDataOutputSampleBufferDelegate {
-    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        if output === videoOutput {
-            frameSubject.send(sampleBuffer)
-        } else {
+    func captureOutput(_ output: AVCaptureOutput,
+                       didOutput sampleBuffer: CMSampleBuffer,
+                       from connection: AVCaptureConnection) {
+        if output === backOutput {
+            if activeCamera == .back { frameSubject.send(sampleBuffer) }
+        } else if output === frontOutput {
+            if activeCamera == .front { frameSubject.send(sampleBuffer) }
+        } else if output === audioOutput {
             audioSubject.send(sampleBuffer)
         }
     }
