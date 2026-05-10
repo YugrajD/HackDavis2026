@@ -130,10 +130,12 @@ struct DashcamView: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: 10) {
-            recordingIndicator
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
+                depthModeButton
+                recordingIndicator
+            }
             Spacer()
-            depthModeButton
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
