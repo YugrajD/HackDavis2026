@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { ApiError, handleApiError, jsonError, readJsonBody } from "@/lib/api/responses";
@@ -14,6 +14,7 @@ const MAX_CLIP_BYTES = media.limits.clipBytes;
 const MAX_REQUEST_BYTES = media.limits.requestBytes;
 const UPLOAD_ROOT = media.uploadRoot;
 const PUBLIC_PREFIX = media.publicPrefix;
+let ensureUploadDirPromise: Promise<void> | null = null;
 
 type MediaKind = UploadedMedia["kind"];
 
@@ -36,6 +37,8 @@ type JsonUploadBody = {
 };
 
 export async function POST(request: Request) {
+  const writtenFiles: string[] = [];
+
   try {
     const contentLength = Number(request.headers.get("content-length") ?? 0);
     if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
@@ -47,7 +50,10 @@ export async function POST(request: Request) {
       return jsonError("Send multipart fields frame/image/thumbnail/clip or JSON imageBase64/frameBase64/thumbnailBase64/clipBase64.", 400);
     }
 
-    await mkdir(UPLOAD_ROOT, { recursive: true });
+    if (!ensureUploadDirPromise) {
+      ensureUploadDirPromise = mkdir(UPLOAD_ROOT, { recursive: true }).then(() => undefined);
+    }
+    await ensureUploadDirPromise;
 
     const stored: UploadedMedia[] = [];
     for (const candidate of candidates) {
@@ -59,7 +65,8 @@ export async function POST(request: Request) {
 
       const filename = `${candidate.kind}-${Date.now()}-${randomUUID()}${extensionFor(contentType)}`;
       const filepath = path.join(UPLOAD_ROOT, filename);
-      await writeFile(filepath, candidate.data);
+      await writeFile(filepath, candidate.data, { flag: "wx" });
+      writtenFiles.push(filepath);
 
       stored.push({
         kind: candidate.kind,
@@ -78,8 +85,24 @@ export async function POST(request: Request) {
 
     return NextResponse.json(response, { status: 201 });
   } catch (error) {
+    await cleanupWrittenFiles(writtenFiles);
     return handleApiError(error, "Media upload failed.");
   }
+}
+
+async function cleanupWrittenFiles(files: string[]) {
+  await Promise.all(
+    files.map(async (file) => {
+      if (!isPathInside(UPLOAD_ROOT, file)) return;
+      await unlink(file).catch(() => undefined);
+    }),
+  );
+}
+
+function isPathInside(root: string, file: string) {
+  const rootPath = path.resolve(root);
+  const filepath = path.resolve(file);
+  return filepath.startsWith(`${rootPath}${path.sep}`);
 }
 
 async function readCandidates(request: Request): Promise<MediaCandidate[]> {
@@ -140,6 +163,13 @@ function decodeBase64Candidate(kind: MediaKind, value: string, fallbackContentTy
 
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64) || base64.length % 4 !== 0) {
     throw new ApiError(400, "Media must be valid base64.");
+  }
+
+  const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
+  const decodedBytes = (base64.length / 4) * 3 - padding;
+  const maxBytes = kind === "thumbnail" ? MAX_THUMBNAIL_BYTES : MAX_CLIP_BYTES;
+  if (decodedBytes > maxBytes) {
+    throw new ApiError(413, `${kind} media exceeds ${Math.round(maxBytes / 1024 / 1024)}MB limit.`);
   }
 
   const data = Buffer.from(base64, "base64");

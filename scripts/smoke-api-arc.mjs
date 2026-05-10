@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import process from "node:process";
 
 const DEFAULT_PORT = Number(process.env.SMOKE_PORT || 3210);
@@ -354,8 +355,12 @@ async function main() {
 
 async function startServer() {
   const nextBin = "node_modules/next/dist/bin/next";
-  console.log(`Starting local Next server on ${baseUrl}`);
-  child = spawn(process.execPath, [nextBin, "dev", "--hostname", "127.0.0.1", "--port", String(DEFAULT_PORT)], {
+  const canUseBuiltServer = process.env.SMOKE_SERVER_MODE !== "dev" && existsSync(".next/BUILD_ID");
+  const serverArgs = canUseBuiltServer
+    ? [nextBin, "start", "--hostname", "127.0.0.1", "--port", String(DEFAULT_PORT)]
+    : [nextBin, "dev", "--hostname", "127.0.0.1", "--port", String(DEFAULT_PORT)];
+  console.log(`Starting local Next ${canUseBuiltServer ? "production" : "dev"} server on ${baseUrl}`);
+  child = spawn(process.execPath, serverArgs, {
     cwd: process.cwd(),
     env: {
       ...process.env,

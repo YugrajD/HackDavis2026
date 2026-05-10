@@ -1,9 +1,9 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { PROVIDER_NAMES } from "@/lib/contracts";
 import type { DangerSegment, HazardEvent, ReportExportFormat } from "@/lib/contracts";
-import { handleApiError, jsonError, readJsonBody } from "@/lib/api/responses";
+import { ApiError, handleApiError, jsonError, readJsonBody, requireJsonObject } from "@/lib/api/responses";
 import { generateSafetyReport, generateSafetyReportWithClaude } from "@/lib/ai/report";
 import { getSponsorConfig, getStorageConfig } from "@/lib/config/server";
 import { listDangerSegments, listEvents } from "@/lib/db/repository";
@@ -13,6 +13,7 @@ import { buildReportExportPayload, type ExportFormat } from "@/lib/reports/expor
 export const runtime = "nodejs";
 
 const formats: ExportFormat[] = ["markdown", "html", "csv", "pdf-text"];
+let ensureReportDirPromise: Promise<void> | null = null;
 
 type ReportExportRequest = {
   segmentId?: string;
@@ -23,7 +24,7 @@ type ReportExportRequest = {
 
 export async function POST(request: Request) {
   try {
-    const body = await readJsonBody<ReportExportRequest>(request, { allowEmpty: true, maxBytes: 256 * 1024 });
+    const body = requireJsonObject<ReportExportRequest>(await readJsonBody<unknown>(request, { allowEmpty: true, maxBytes: 256 * 1024 }));
     const format = formats.includes(body.format as ExportFormat) ? (body.format as ExportFormat) : "markdown";
     const segments = await listDangerSegments();
     const requestedSegment = body.segmentId ? resolveDangerSegment(segments, body.segmentId) : undefined;
@@ -51,7 +52,28 @@ export async function POST(request: Request) {
 
 async function persistReportExport(filename: string, document: string) {
   const { reports } = getStorageConfig();
-  await mkdir(reports.exportRoot, { recursive: true });
-  await writeFile(path.join(reports.exportRoot, filename), document, "utf8");
+  if (!ensureReportDirPromise) {
+    ensureReportDirPromise = mkdir(reports.exportRoot, { recursive: true }).then(() => undefined);
+  }
+  await ensureReportDirPromise;
+
+  const filepath = safeGeneratedPath(reports.exportRoot, filename);
+  const tempPath = safeGeneratedPath(reports.exportRoot, `.${filename}.${process.pid}.${Date.now()}.tmp`, { allowDotfile: true });
+  await writeFile(tempPath, document, "utf8");
+  await rename(tempPath, filepath);
   return `${reports.publicPrefix}/${filename}`;
+}
+
+function safeGeneratedPath(root: string, filename: string, options: { allowDotfile?: boolean } = {}) {
+  if (path.basename(filename) !== filename || (!options.allowDotfile && filename.startsWith("."))) {
+    throw new ApiError(400, "Report filename is invalid.");
+  }
+
+  const rootPath = path.resolve(root);
+  const filepath = path.resolve(rootPath, filename);
+  if (!filepath.startsWith(`${rootPath}${path.sep}`)) {
+    throw new ApiError(400, "Report filename is invalid.");
+  }
+
+  return filepath;
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const prompts = process.argv.slice(2);
@@ -16,7 +16,10 @@ const outputDir = path.join(process.cwd(), "public", "generated", "scenarios");
 await mkdir(outputDir, { recursive: true });
 
 const scenarios = inputs.map((prompt) => generateScenario(prompt));
-await writeFile(path.join(outputDir, "road-scenarios.json"), `${JSON.stringify({ generatedAt: new Date().toISOString(), scenarios }, null, 2)}\n`);
+const outputPath = path.join(outputDir, "road-scenarios.json");
+const tempPath = path.join(outputDir, `.road-scenarios.${process.pid}.${Date.now()}.tmp`);
+await writeFile(tempPath, `${JSON.stringify({ generatedAt: new Date().toISOString(), scenarios }, null, 2)}\n`);
+await rename(tempPath, outputPath);
 console.log(`Wrote ${scenarios.length} scenarios to public/generated/scenarios/road-scenarios.json`);
 
 function generateScenario(prompt) {
