@@ -4,6 +4,7 @@ import type { DangerSegment, HazardEvent, HazardType } from "@/lib/contracts";
 const CLUSTER_RADIUS_M = 180;
 const MAX_CLUSTER_SPAN_M = 260;
 const SEEDED_SEGMENT_MATCH_RADIUS_M = 180;
+const CLUSTER_BUCKET_DEGREES = 0.003;
 
 type RiskFamily = "vehicle-clearance" | "intersection-conflict" | "surface-obstruction";
 
@@ -21,6 +22,7 @@ type EventCluster = {
   events: HazardEvent[];
   centerLat: number;
   centerLng: number;
+  bucketKey: string;
 };
 
 const familyLabels: Record<RiskFamily, string> = {
@@ -72,7 +74,11 @@ export function computeDangerSegments(events: HazardEvent[]): DangerSegment[] {
   if (!events.length) return [];
 
   const referenceTime = newestTimestamp(events);
-  return clusterEvents(events).map((cluster) => buildDangerSegment(cluster, referenceTime)).sort(compareSegments);
+  return sortDangerSegments(clusterEvents(events).map((cluster) => buildDangerSegment(cluster, referenceTime)));
+}
+
+export function sortDangerSegments(segments: DangerSegment[]) {
+  return [...segments].sort(compareSegments);
 }
 
 export function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -88,29 +94,37 @@ export function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: 
 
 function clusterEvents(events: HazardEvent[]) {
   const clusters: EventCluster[] = [];
+  const buckets = new Map<string, Set<EventCluster>>();
 
   for (const event of [...events].sort(compareEvents)) {
     const family = riskFamily(event.type);
-    const candidate = clusters
-      .filter((cluster) => cluster.family === family)
-      .map((cluster) => ({
-        cluster,
-        distanceM: haversineMeters(event.lat, event.lng, cluster.centerLat, cluster.centerLng),
-      }))
-      .filter(({ cluster, distanceM }) => distanceM <= CLUSTER_RADIUS_M && wouldFitCluster(event, cluster))
-      .sort((a, b) => a.distanceM - b.distanceM || compareEvents(a.cluster.events[0], b.cluster.events[0]))[0]?.cluster;
+    let candidate: EventCluster | undefined;
+    let candidateDistanceM = Number.POSITIVE_INFINITY;
+
+    for (const cluster of nearbyClusters(buckets, family, event.lat, event.lng)) {
+      const distanceM = haversineMeters(event.lat, event.lng, cluster.centerLat, cluster.centerLng);
+      if (distanceM > CLUSTER_RADIUS_M || !wouldFitCluster(event, cluster)) continue;
+
+      const betterDistance = distanceM < candidateDistanceM;
+      const sameDistanceEarlierCluster = distanceM === candidateDistanceM && candidate && compareEvents(cluster.events[0], candidate.events[0]) < 0;
+      if (!candidate || betterDistance || sameDistanceEarlierCluster) {
+        candidate = cluster;
+        candidateDistanceM = distanceM;
+      }
+    }
 
     if (candidate) {
-      candidate.events.push(event);
-      candidate.centerLat = average(candidate.events.map((item) => item.lat));
-      candidate.centerLng = average(candidate.events.map((item) => item.lng));
+      moveClusterToCurrentBucket(buckets, candidate, event);
     } else {
-      clusters.push({
+      const cluster = {
         family,
         events: [event],
         centerLat: event.lat,
         centerLng: event.lng,
-      });
+        bucketKey: clusterBucketKey(family, event.lat, event.lng),
+      } satisfies EventCluster;
+      clusters.push(cluster);
+      addClusterToBucket(buckets, cluster);
     }
   }
 
@@ -123,19 +137,62 @@ function wouldFitCluster(event: HazardEvent, cluster: EventCluster) {
   );
 }
 
+function nearbyClusters(buckets: Map<string, Set<EventCluster>>, family: RiskFamily, lat: number, lng: number) {
+  const clusters = new Set<EventCluster>();
+  const latBucket = coordinateBucket(lat);
+  const lngBucket = coordinateBucket(lng);
+
+  for (let latOffset = -1; latOffset <= 1; latOffset += 1) {
+    for (let lngOffset = -1; lngOffset <= 1; lngOffset += 1) {
+      for (const cluster of buckets.get(`${family}:${latBucket + latOffset}:${lngBucket + lngOffset}`) ?? []) {
+        clusters.add(cluster);
+      }
+    }
+  }
+
+  return clusters;
+}
+
+function moveClusterToCurrentBucket(buckets: Map<string, Set<EventCluster>>, cluster: EventCluster, event: HazardEvent) {
+  cluster.events.push(event);
+  cluster.centerLat = average(cluster.events.map((item) => item.lat));
+  cluster.centerLng = average(cluster.events.map((item) => item.lng));
+
+  const nextBucketKey = clusterBucketKey(cluster.family, cluster.centerLat, cluster.centerLng);
+  if (nextBucketKey === cluster.bucketKey) return;
+
+  buckets.get(cluster.bucketKey)?.delete(cluster);
+  cluster.bucketKey = nextBucketKey;
+  addClusterToBucket(buckets, cluster);
+}
+
+function addClusterToBucket(buckets: Map<string, Set<EventCluster>>, cluster: EventCluster) {
+  const bucket = buckets.get(cluster.bucketKey) ?? new Set<EventCluster>();
+  bucket.add(cluster);
+  buckets.set(cluster.bucketKey, bucket);
+}
+
+function clusterBucketKey(family: RiskFamily, lat: number, lng: number) {
+  return `${family}:${coordinateBucket(lat)}:${coordinateBucket(lng)}`;
+}
+
+function coordinateBucket(value: number) {
+  return Math.floor(value / CLUSTER_BUCKET_DEGREES);
+}
+
 function buildDangerSegment(cluster: EventCluster, referenceTime: number): DangerSegment {
   const events = [...cluster.events].sort(compareEvents);
-  const typeCounts = countTypes(events);
-  const topTypes = [...typeCounts.entries()]
-    .sort(([typeA, countA], [typeB, countB]) => countB - countA || maxSeverity(events, typeB) - maxSeverity(events, typeA) || typeA.localeCompare(typeB))
+  const typeStats = countTypeStats(events);
+  const topTypes = [...typeStats.entries()]
+    .sort(([, statsA], [, statsB]) => statsB.count - statsA.count || statsB.maxSeverity - statsA.maxSeverity || statsA.type.localeCompare(statsB.type))
     .slice(0, 3)
     .map(([type]) => type);
-  const lastSeen = events.reduce((latest, event) => (timestampMs(event.timestamp) > timestampMs(latest) ? event.timestamp : latest), events[0].timestamp);
+  const lastSeen = newestEventTimestamp(events);
   const avgSeverity = average(events.map((event) => event.severity));
   const eventCountBonus = Math.min(100, events.length * 12);
   const lastSeenAgeMs = Math.max(0, referenceTime - timestampMs(lastSeen));
   const recentBonus = lastSeenAgeMs <= 60 * 60 * 1000 ? 100 : lastSeenAgeMs <= 24 * 60 * 60 * 1000 ? 60 : 20;
-  const topTypeCount = Math.max(...typeCounts.values());
+  const topTypeCount = Math.max(...[...typeStats.values()].map((stats) => stats.count));
   const repeatTypeBonus = topTypeCount >= 3 ? 100 : 40;
   const score = Math.round(avgSeverity * 0.45 + eventCountBonus * 0.25 + recentBonus * 0.15 + repeatTypeBonus * 0.15);
 
@@ -180,16 +237,19 @@ export function resolveDangerSegment(segments: DangerSegment[], segmentId: strin
   return candidate ? { ...candidate, id: template.id, label: template.label } : undefined;
 }
 
-function countTypes(events: HazardEvent[]) {
-  const counts = new Map<HazardType, number>();
+function countTypeStats(events: HazardEvent[]) {
+  const stats = new Map<HazardType, { type: HazardType; count: number; maxSeverity: number }>();
   for (const event of events) {
-    counts.set(event.type, (counts.get(event.type) ?? 0) + 1);
+    const current = stats.get(event.type) ?? { type: event.type, count: 0, maxSeverity: 0 };
+    current.count += 1;
+    current.maxSeverity = Math.max(current.maxSeverity, event.severity);
+    stats.set(event.type, current);
   }
-  return counts;
+  return stats;
 }
 
-function maxSeverity(events: HazardEvent[], type: HazardType) {
-  return events.reduce((max, event) => (event.type === type ? Math.max(max, event.severity) : max), 0);
+function newestEventTimestamp(events: HazardEvent[]) {
+  return events.reduce((latest, event) => (timestampMs(event.timestamp) > timestampMs(latest) ? event.timestamp : latest), events[0].timestamp);
 }
 
 function matchSeededTemplate(family: RiskFamily, topTypes: HazardType[], centerLat: number, centerLng: number) {

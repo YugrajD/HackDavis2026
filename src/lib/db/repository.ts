@@ -1,14 +1,14 @@
 import type { Db } from "mongodb";
 import type { CameraRole, DangerSegment, HazardEvent, HazardType, ReplayPayload, Ride, RideMode, RoutePoint } from "@/lib/contracts";
-import { sortEventsForTimeline, sortEventsNewestFirst } from "@/lib/db/event-ordering";
+import { mongoEventSort, sortEventsNewestFirst, type EventSortOrder } from "@/lib/db/event-ordering";
 import { getMongoDb, isMongoConfigured, point } from "@/lib/db/mongo";
-import { computeDangerSegments } from "@/lib/geo/danger-segments";
+import { computeDangerSegments, sortDangerSegments } from "@/lib/geo/danger-segments";
 import { demoDangerSegments, demoEvents, demoRide } from "@/lib/seed/demo-data";
 import {
   appendRideRoute as appendMemoryRideRoute,
   buildEvent,
   buildRide,
-  calculateRideStats,
+  calculateRideStatsFromEventStats,
   createEvent as createMemoryEvent,
   createEvents as createMemoryEvents,
   createRide as createMemoryRide,
@@ -22,6 +22,7 @@ import {
   resetDemoData as resetMemoryDemoData,
   type CreateRideInput,
   type EventFilters,
+  type EventStats,
 } from "@/lib/db/store";
 
 export type PersistenceMode = "memory" | "mongodb";
@@ -34,12 +35,13 @@ type Persisted<T> = {
 type Location = ReturnType<typeof point>;
 type EventDocument = HazardEvent & { location: Location };
 type DangerSegmentDocument = DangerSegment & { location: Location };
+type ListEventsOptions = { order?: EventSortOrder };
 
 export async function listRides() {
   const db = await configuredMongoDb();
   if (!db) return listMemoryRides();
 
-  return db.collection<Ride>("rides").find({}, { projection: { _id: 0 } }).toArray();
+  return db.collection<Ride>("rides").find({}, { projection: { _id: 0 } }).sort({ startedAt: -1, id: 1 }).toArray();
 }
 
 export async function getRide(rideId: string) {
@@ -65,11 +67,10 @@ export async function endRide(rideId: string) {
   const ride = await getRide(rideId);
   if (!ride) return null;
 
-  const events = await listEvents({ rideId });
   const updatedRide: Ride = {
     ...ride,
     endedAt: new Date().toISOString(),
-    stats: calculateRideStats(ride.route, events),
+    stats: calculateRideStatsFromEventStats(ride.route, await readEventStats(db, rideId)),
   };
 
   await db.collection<Ride>("rides").replaceOne({ id: rideId }, updatedRide);
@@ -87,20 +88,19 @@ export async function appendRideRoute(rideId: string, points: RoutePoint[]): Pro
   if (!ride) return null;
 
   const route = [...ride.route, ...points];
-  const events = await listEvents({ rideId });
   const updatedRide: Ride = {
     ...ride,
     route,
-    stats: calculateRideStats(route, events),
+    stats: calculateRideStatsFromEventStats(route, await readEventStats(db, rideId)),
   };
 
   await db.collection<Ride>("rides").replaceOne({ id: rideId }, updatedRide);
   return { value: updatedRide, persisted: "mongodb" };
 }
 
-export async function listEvents(filters: EventFilters = {}) {
+export async function listEvents(filters: EventFilters = {}, options: ListEventsOptions = {}) {
   const db = await configuredMongoDb();
-  if (!db) return listMemoryEvents(filters);
+  if (!db) return listMemoryEvents(filters, options);
 
   const query: Record<string, unknown> = {};
   if (filters.rideId) query.rideId = filters.rideId;
@@ -116,8 +116,12 @@ export async function listEvents(filters: EventFilters = {}) {
     if (!filters.rideId) query.rideId = { $in: rideIds };
   }
 
-  const docs = await db.collection<EventDocument>("events").find(query, { projection: { _id: 0, location: 0 } }).sort({ timestamp: -1, t: -1, id: 1 }).toArray();
-  return sortEventsNewestFirst(docs.map(stripLocation));
+  const docs = await db
+    .collection<EventDocument>("events")
+    .find(query, { projection: { _id: 0, location: 0 } })
+    .sort(mongoEventSort(options.order ?? "newest"))
+    .toArray();
+  return docs.map(stripLocation);
 }
 
 export async function createEvent(input: Partial<HazardEvent>): Promise<Persisted<HazardEvent>> {
@@ -126,7 +130,7 @@ export async function createEvent(input: Partial<HazardEvent>): Promise<Persiste
 
   const event = buildEvent(input);
   await db.collection<EventDocument>("events").insertOne(toEventDocument(event));
-  await recomputeMongoDangerSegments(db);
+  await Promise.all([applyMongoEventStatsDeltas(db, [event]), recomputeMongoDangerSegments(db)]);
   return { value: event, persisted: "mongodb" };
 }
 
@@ -137,7 +141,7 @@ export async function createEvents(inputs: Partial<HazardEvent>[]): Promise<Pers
   const events = inputs.map(buildEvent);
   if (events.length) {
     await db.collection<EventDocument>("events").insertMany(events.map(toEventDocument));
-    await recomputeMongoDangerSegments(db);
+    await Promise.all([applyMongoEventStatsDeltas(db, events), recomputeMongoDangerSegments(db)]);
   }
 
   return { value: events, persisted: "mongodb" };
@@ -177,20 +181,25 @@ export async function listDangerSegments(bbox?: { westLng: number; southLat: num
     : {};
 
   const docs = await db.collection<DangerSegmentDocument>("danger_segments").find(query, { projection: { _id: 0, location: 0 } }).toArray();
-  return docs.map(stripLocation);
+  return sortDangerSegments(docs.map(stripLocation));
 }
 
 export async function getReplayPayload(rideId: string): Promise<ReplayPayload | null> {
   const db = await configuredMongoDb();
   if (!db) return getMemoryReplayPayload(rideId);
 
-  const ride = await getRide(rideId);
+  const [ride, eventDocs, segmentDocs] = await Promise.all([
+    db.collection<Ride>("rides").findOne({ id: rideId }, { projection: { _id: 0 } }),
+    db.collection<EventDocument>("events").find({ rideId }, { projection: { _id: 0, location: 0 } }).sort(mongoEventSort("timeline")).toArray(),
+    db.collection<DangerSegmentDocument>("danger_segments").find({}, { projection: { _id: 0, location: 0 } }).toArray(),
+  ]);
+
   if (!ride) return null;
 
   return {
     ride,
-    events: sortEventsForTimeline(await listEvents({ rideId })),
-    dangerSegments: await listDangerSegments(),
+    events: eventDocs.map(stripLocation),
+    dangerSegments: sortDangerSegments(segmentDocs.map(stripLocation)),
     generatedAt: new Date().toISOString(),
   };
 }
@@ -199,16 +208,18 @@ export async function resetDemoData() {
   const db = await configuredMongoDb();
   if (!db) return resetMemoryDemoData();
 
+  const ride = cloneValue(demoRide);
+  const events = cloneValue(demoEvents);
+  const dangerSegments = cloneValue(demoDangerSegments);
+
   await Promise.all([
-    db.collection<Ride>("rides").replaceOne({ id: demoRide.id }, demoRide, { upsert: true }),
-    db.collection<EventDocument>("events").deleteMany({ rideId: demoRide.id }),
-    db
-      .collection<DangerSegmentDocument>("danger_segments")
-      .deleteMany({ id: { $in: demoDangerSegments.map((segment) => segment.id) } }),
+    db.collection<Ride>("rides").replaceOne({ id: ride.id }, ride, { upsert: true }),
+    db.collection<EventDocument>("events").deleteMany({ rideId: ride.id }),
+    db.collection<DangerSegmentDocument>("danger_segments").deleteMany({ id: { $in: dangerSegments.map((segment) => segment.id) } }),
   ]);
   await Promise.all([
-    db.collection<EventDocument>("events").insertMany(demoEvents.map(toEventDocument)),
-    db.collection<DangerSegmentDocument>("danger_segments").insertMany(demoDangerSegments.map(toDangerSegmentDocument)),
+    db.collection<EventDocument>("events").insertMany(events.map(toEventDocument)),
+    db.collection<DangerSegmentDocument>("danger_segments").insertMany(dangerSegments.map(toDangerSegmentDocument)),
   ]);
 
   return {
@@ -228,14 +239,60 @@ async function configuredMongoDb() {
   }
 }
 
+async function readEventStats(db: Db, rideId: string): Promise<EventStats> {
+  const [stats] = await db
+    .collection<EventDocument>("events")
+    .aggregate<EventStats>([
+      { $match: { rideId } },
+      { $group: { _id: null, count: { $sum: 1 }, maxSeverity: { $max: "$severity" } } },
+      { $project: { _id: 0, count: 1, maxSeverity: { $ifNull: ["$maxSeverity", 0] } } },
+    ])
+    .toArray();
+
+  return stats ?? { count: 0, maxSeverity: 0 };
+}
+
+async function applyMongoEventStatsDeltas(db: Db, events: HazardEvent[]) {
+  if (!events.length) return;
+
+  const deltas = new Map<string, EventStats>();
+  for (const event of events) {
+    const current = deltas.get(event.rideId) ?? { count: 0, maxSeverity: 0 };
+    current.count += 1;
+    current.maxSeverity = Math.max(current.maxSeverity, event.severity);
+    deltas.set(event.rideId, current);
+  }
+
+  await Promise.all(
+    [...deltas].map(([rideId, delta]) =>
+      db.collection<Ride>("rides").updateOne({ id: rideId }, { $inc: { "stats.eventCount": delta.count }, $max: { "stats.maxRisk": delta.maxSeverity } }),
+    ),
+  );
+}
+
 async function recomputeMongoDangerSegments(db: Db) {
   const docs = await db.collection<EventDocument>("events").find({}, { projection: { _id: 0, location: 0 } }).toArray();
   const dangerSegments = computeDangerSegments(docs.map(stripLocation));
 
-  await db.collection<DangerSegmentDocument>("danger_segments").deleteMany({});
-  if (dangerSegments.length) {
-    await db.collection<DangerSegmentDocument>("danger_segments").insertMany(dangerSegments.map(toDangerSegmentDocument));
+  await replaceMongoDangerSegments(db, dangerSegments);
+}
+
+async function replaceMongoDangerSegments(db: Db, dangerSegments: DangerSegment[]) {
+  if (!dangerSegments.length) {
+    await db.collection<DangerSegmentDocument>("danger_segments").deleteMany({});
+    return;
   }
+
+  await db.collection<DangerSegmentDocument>("danger_segments").bulkWrite(
+    dangerSegments.map((segment) => ({
+      replaceOne: {
+        filter: { id: segment.id },
+        replacement: toDangerSegmentDocument(segment),
+        upsert: true,
+      },
+    })),
+  );
+  await db.collection<DangerSegmentDocument>("danger_segments").deleteMany({ id: { $nin: dangerSegments.map((segment) => segment.id) } });
 }
 
 function toEventDocument(event: HazardEvent): EventDocument {
@@ -255,4 +312,8 @@ function toDangerSegmentDocument(segment: DangerSegment): DangerSegmentDocument 
 function stripLocation<T>(document: T & { location?: Location }) {
   const { location: _location, ...payload } = document;
   return payload;
+}
+
+function cloneValue<T>(value: T): T {
+  return structuredClone(value);
 }
