@@ -3,7 +3,7 @@ import AVKit
 
 // MARK: - Stryds palette
 private extension Color {
-    static let neonGreen    = Color(red: 0.651, green: 1.000, blue: 0.000)   // #a6ff00
+    static let neonGreen    = Color(red: 0.000, green: 0.478, blue: 1.000)   // #007AFF Apple blue
     static let cardSurface  = Color(red: 0.090, green: 0.090, blue: 0.090)   // #171717
     static let graphite     = Color(red: 0.239, green: 0.239, blue: 0.239)   // #3d3d3d
     static let brightText   = Color(red: 0.992, green: 0.992, blue: 0.992)   // #fdfdfd
@@ -52,7 +52,7 @@ struct GalleryView: View {
                 } label: {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color.deepSpace)
+                        .foregroundStyle(Color.brightText)
                         .padding(12)
                         .background(Color.neonGreen, in: Circle())
                 }
@@ -156,7 +156,7 @@ private struct ClipCard: View {
                     // Hazard type pill
                     Text(clip.type.replacingOccurrences(of: "_", with: " ").uppercased())
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(Color.deepSpace)
+                        .foregroundStyle(Color.brightText)
                         .tracking(0.5)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 5)
@@ -175,19 +175,6 @@ private struct ClipCard: View {
                         .foregroundStyle(Color.mutedAsh)
                 }
 
-                Spacer()
-
-                // Severity badge
-                VStack(spacing: 2) {
-                    Text("\(Int(clip.severity.rounded()))")
-                        .font(.system(size: 36, weight: .bold))
-                        .foregroundStyle(severityColor)
-                        .tracking(-1)
-                    Text("RISK")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(Color.mutedAsh)
-                        .tracking(1)
-                }
             }
         }
         .padding(18)

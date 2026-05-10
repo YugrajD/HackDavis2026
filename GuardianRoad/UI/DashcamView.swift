@@ -130,30 +130,10 @@ struct DashcamView: View {
     private var topBar: some View {
         HStack(spacing: 10) {
             Spacer()
-            hudChip
             recordingIndicator
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-    }
-
-    private var hudChip: some View {
-        HStack(spacing: 4) {
-            Text("HUD")
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Color(red: 0.65, green: 0.95, blue: 1.0))
-            Text("\(vm.perception.hudScore)")
-                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                .foregroundStyle(.white)
-            Text("· \(vm.perception.detections.count)")
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.6))
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color.cyan.opacity(0.18))
-        .overlay(Capsule().stroke(Color.cyan.opacity(0.5), lineWidth: 1))
-        .clipShape(Capsule())
     }
 
     @ViewBuilder
