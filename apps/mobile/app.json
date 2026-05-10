@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Guardian Road",
+    "slug": "guardian-road-mobile",
+    "scheme": "guardian-road",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "platforms": ["ios", "android"],
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Guardian Road captures road frames for safety detection.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Guardian Road uses your location for geotagged hazard events."
+        }
+      ],
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

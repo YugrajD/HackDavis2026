@@ -35,3 +35,10 @@ pnpm-debug.log*
 /public/generated/reports/
 /public/generated/scenarios/
 dist
+
+# Expo local tooling
+apps/mobile/.expo/
+
+# Python / ML artifacts
+services/yolo/__pycache__/
+services/yolo/*.pt
