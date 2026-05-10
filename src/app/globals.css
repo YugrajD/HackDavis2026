@@ -4,8 +4,23 @@
 
 :root {
   color-scheme: dark;
-  background: #080b0f;
-  color: #f8fafc;
+  --gr-void: #050608;
+  --gr-asphalt: #080a0d;
+  --gr-surface: #0c1116;
+  --gr-surface-raised: #111820;
+  --gr-surface-hot: #17120b;
+  --gr-line: #1f2a33;
+  --gr-line-strong: #33424d;
+  --gr-text: #e8edf0;
+  --gr-text-muted: #9aa6ad;
+  --gr-text-dim: #5f6b74;
+  --gr-amber: #f59e0b;
+  --gr-orange: #f97316;
+  --gr-critical: #fb4e1b;
+  --gr-telemetry: #22d3ee;
+  --gr-grid: rgba(148, 163, 184, 0.07);
+  background: var(--gr-asphalt);
+  color: var(--gr-text);
 }
 
 * {
@@ -14,16 +29,19 @@
 
 html {
   min-height: 100%;
-  background: #080b0f;
+  background: var(--gr-asphalt);
 }
 
 body {
   min-height: 100vh;
   margin: 0;
   background:
-    radial-gradient(circle at 20% 10%, rgba(103, 232, 249, 0.1), transparent 28rem),
-    linear-gradient(135deg, #080b0f 0%, #0b1118 48%, #111827 100%);
-  color: #f8fafc;
+    linear-gradient(rgba(148, 163, 184, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.045) 1px, transparent 1px),
+    radial-gradient(circle at 50% -20%, rgba(245, 158, 11, 0.08), transparent 26rem),
+    var(--gr-asphalt);
+  background-size: 48px 48px, 48px 48px, auto, auto;
+  color: var(--gr-text);
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -32,6 +50,23 @@ a {
   text-decoration: none;
 }
 
+:focus-visible {
+  outline: 2px solid var(--gr-amber);
+  outline-offset: 2px;
+}
+
 ::selection {
-  background: rgba(103, 232, 249, 0.28);
+  background: rgba(245, 158, 11, 0.32);
+  color: var(--gr-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
