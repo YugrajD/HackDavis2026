@@ -12,7 +12,8 @@ Guardian Road turns phones into road safety sensors. Bike/scooter phones warn ri
 - `docs/FRIEND_TASKS.md` — independent task specs for replay and records.
 - `docs/REUSE_PLAN.md` — what to reuse from inspiration repos.
 - `docs/INTEGRATION_STATUS.md` — blockers and contract changes.
-- `docs/EXPO_MODEL_SETUP.md` — mobile model asset setup for React Native + Expo prebuild.
+- `docs/BACKEND_WIRED_RUNBOOK.md` — wired endpoints, env keys, judge demo runbook, reuse permission, and remaining work.
+- `docs/YOLO_MOBILE_RUNBOOK.md` — Next + YOLO sidecar + Expo handoff over LAN Wi-Fi.
 
 ## Core loop
 
@@ -27,10 +28,25 @@ camera + GPS + IMU
 → safety report
 ```
 
-## Apps
+## Backend demo status
 
-- Root app: Three.js/R3F safety replay prototype.
-- `mobile/`: React Native + Expo prebuild capture app with camera UI, seeded detections, spoken alerts, and TFLite model assets.
+The backend is wired for the judge/friends demo. Seed `demo-ride-1`, then replay can use `/api/replay/demo-ride-1` and records can use `/api/events?rideId=demo-ride-1`, `/api/danger-segments`, `/api/ai/report`, and `/api/reports/export`. The app runs without secrets through memory/stub providers; real Atlas, Gemini, Claude, and ElevenLabs keys go only in `.env.local`.
+
+Quick local check:
+
+```bash
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+Then in another terminal:
+
+```bash
+npm run demo:doctor
+```
+
+The doctor seeds the demo and checks readiness, provider status, replay, events, and danger segments against `API_BASE_URL` (default `http://localhost:3000`). See `docs/BACKEND_WIRED_RUNBOOK.md` for the full endpoint matrix, env key list, and demo commands.
 
 ## Track targets
 

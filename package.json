@@ -1,26 +1,42 @@
 {
-  "name": "guardian-road-replay",
+  "name": "guardian-road",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "smoke:api": "node scripts/smoke-api-arc.mjs",
+    "smoke:api:errors": "node scripts/smoke-api-errors.mjs",
+    "smoke:report": "node scripts/smoke-report-export.mjs",
+    "smoke:yolo": "node scripts/smoke-yolo-detect.mjs",
+    "smoke:mobile": "node scripts/smoke-mobile-capture.mjs",
+    "demo:doctor": "node scripts/demo-doctor.mjs",
+    "scenarios:generate": "node scripts/generate-road-scenarios.mjs",
+    "mobile:start": "npm --prefix apps/mobile run start",
+    "mobile:typecheck": "npm --prefix apps/mobile run typecheck"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",
-    "@react-three/drei": "^10.7.7",
-    "@react-three/fiber": "^9.6.1",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "three": "^0.176.0",
-    "typescript": "^5.8.3",
-    "vite": "^6.3.5"
+    "@google/generative-ai": "^0.24.1",
+    "@sparkjsdev/spark": "^2.0.0",
+    "mongodb": "^7.2.0",
+    "next": "^15.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "three": "^0.184.0",
+    "@react-three/fiber": "^9.1.2",
+    "@react-three/drei": "^10.3.5"
   },
   "devDependencies": {
-    "@types/three": "^0.184.1"
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.184.1",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3"
   }
 }

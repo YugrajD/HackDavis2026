@@ -4,8 +4,9 @@ We looked at four inspiration projects. The goal is to reuse what saves time wit
 
 ## Licensing rule
 
-- **Mirage** has a top-level MIT license. We can directly reuse code with attribution.
-- **PathSense, LureLore, and ShipSense** have owner-confirmed MIT licensing. We can reuse code with attribution, but should still prefer rebuilding project-specific pieces unless direct copying saves real time.
+- **Mirage** has an MIT license. We can directly reuse code with attribution.
+- **PathSense, LureLore, and ShipSense** did not expose a top-level license in the inspected repos, but their owners approved Guardian Road reuse for this hackathon project. Keep attribution in `NOTICE.md` when porting useful helpers or patterns.
+- This permission is hackathon-project reuse permission, not a general relicensing of those repos. Do not copy unrelated assets or large unlicensed code blocks unless the permission remains clear.
 
 ## 1. Mirage, TreeHacks 2026
 
@@ -39,7 +40,7 @@ Implementation note:
 
 Repo: `https://github.com/akjadhav/hackthenorth-2024`
 
-Owner-confirmed MIT. Reuse with attribution if needed.
+Do not copy code directly unless license is clarified.
 
 Study these files:
 
@@ -78,7 +79,7 @@ camera frame
 
 Repo: `https://github.com/danielh-hong/hackthenorth2024`
 
-Owner-confirmed MIT. Reuse with attribution if needed.
+Do not copy code/assets directly unless license is clarified.
 
 Study these files:
 
@@ -109,7 +110,7 @@ Guardian Road version:
 
 Repo: `https://github.com/SohamGovande/treehacks-2023`
 
-Owner-confirmed MIT. Reuse with attribution if needed.
+Do not copy code/assets directly unless license is clarified.
 
 Study these files:
 
@@ -137,20 +138,15 @@ Guardian Road version:
 
 ## Reuse priority
 
-1. Use LureLore-style React Three Fiber scene composition for clickable 3D entities.
-2. Port Mirage `SplatViewer.tsx` only if Scenario Lab / Gaussian splats become part of the demo.
-3. Rebuild PathSense-style perception contracts and stubs.
-4. Rebuild LureLore-style Mongo/Gemini event pipeline.
-5. Rebuild ShipSense-style danger-segment dashboard/report pattern.
+1. Port Mirage `SplatViewer.tsx` and add attribution.
+2. Rebuild PathSense-style perception contracts and stubs.
+3. Rebuild LureLore-style Mongo/Gemini event pipeline.
+4. Rebuild ShipSense-style danger-segment dashboard/report pattern.
 
 ## Attribution
 
 If we copy MIT-licensed Mirage code, add this to `NOTICE.md`:
 
 ```txt
-Portions of the 3D viewer architecture may be adapted from Mirage by Kyan Yang et al., MIT License: https://github.com/kyan-yang/Mirage
-React Three Fiber scene-organization patterns may be adapted from LureLore, owner-confirmed MIT License: https://github.com/danielh-hong/hackthenorth2024
-Mapping/navigation and danger-zone visualization patterns may be adapted from PathSense and ShipSense, owner-confirmed MIT License:
-https://github.com/akjadhav/hackthenorth-2024
-https://github.com/SohamGovande/treehacks-2023
+Portions of the Gaussian splat viewer and scenario-generation architecture are adapted from Mirage by Kyan Yang et al., MIT License: https://github.com/kyan-yang/Mirage
 ```
