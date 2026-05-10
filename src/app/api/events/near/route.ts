@@ -7,12 +7,15 @@ const MAX_RADIUS_M = 5000;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const lat = Number(searchParams.get("lat"));
-  const lng = Number(searchParams.get("lng"));
-  const radiusM = Number(searchParams.get("radiusM") ?? 100);
+  const latRaw = searchParams.get("lat");
+  const lngRaw = searchParams.get("lng");
+  const radiusRaw = searchParams.get("radiusM") ?? "100";
+  const lat = latRaw === null || latRaw.trim() === "" ? NaN : Number(latRaw);
+  const lng = lngRaw === null || lngRaw.trim() === "" ? NaN : Number(lngRaw);
+  const radiusM = radiusRaw.trim() === "" ? NaN : Number(radiusRaw);
 
   if (!isLatitude(lat) || !isLongitude(lng) || !Number.isFinite(radiusM)) {
-    return jsonError("lat, lng, and radiusM must be valid numbers", 400);
+    return jsonError("lat and lng are required, and radiusM must be a valid number", 400);
   }
 
   if (radiusM <= 0 || radiusM > MAX_RADIUS_M) {

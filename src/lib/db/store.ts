@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { CONFIDENCE_MAX, CONFIDENCE_MIN, SEVERITY_MAX, SEVERITY_MIN } from "@/lib/contracts";
 import type { CameraRole, DangerSegment, HazardEvent, HazardType, ReplayPayload, Ride, RideMode, RoutePoint } from "@/lib/contracts";
 import { sortEvents, sortEventsNewestFirst, type EventSortOrder } from "@/lib/db/event-ordering";
+import { PersistenceConflictError } from "@/lib/db/errors";
 import { computeDangerSegments, haversineMeters, sortDangerSegments } from "@/lib/geo/danger-segments";
 import { demoDangerSegments, demoEvents, demoRide } from "@/lib/seed/demo-data";
 
@@ -168,6 +169,8 @@ export function buildEvent(input: Partial<HazardEvent>) {
 export function createEvent(input: Partial<HazardEvent>) {
   const event = buildEvent(input);
   const store = state();
+  assertUniqueIds([event.id], "event");
+  assertEventIdsAvailable(store, [event.id]);
   store.events.unshift(event);
   addEventToRideIndex(store, event);
   applyEventStatsDelta(event.rideId, 1, event.severity);
@@ -180,6 +183,9 @@ export function createEvents(inputs: Partial<HazardEvent>[]) {
   if (!events.length) return events;
 
   const store = state();
+  const eventIds = events.map((event) => event.id);
+  assertUniqueIds(eventIds, "event");
+  assertEventIdsAvailable(store, eventIds);
   store.events.unshift(...events);
   for (let index = events.length - 1; index >= 0; index -= 1) addEventToRideIndex(store, events[index]);
   applyEventStatsDeltas(events);
@@ -293,6 +299,20 @@ function applyEventStatsDelta(rideId: string, countDelta: number, maxSeverity: n
 function recomputeDangerSegments() {
   const store = state();
   store.dangerSegments = computeDangerSegments(store.events);
+}
+
+function assertEventIdsAvailable(store: StoreState, eventIds: string[]) {
+  const existingIds = new Set(store.events.map((event) => event.id));
+  const duplicateId = eventIds.find((id) => existingIds.has(id));
+  if (duplicateId) throw new PersistenceConflictError(`Event ${duplicateId} already exists.`);
+}
+
+function assertUniqueIds(ids: string[], label: string) {
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (seen.has(id)) throw new PersistenceConflictError(`Duplicate ${label} id ${id}.`);
+    seen.add(id);
+  }
 }
 
 const emptyRideIds = new Set<string>();

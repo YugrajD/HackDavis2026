@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { AppendRideRouteResponse, RoutePoint } from "@/lib/contracts";
 import { handleApiError, jsonError, readJsonBody } from "@/lib/api/responses";
 import { isFiniteNumber, isLatitude, isLongitude, isNonNegativeFinite, safeIdentifier } from "@/lib/api/validation";
-import { appendRideRoute } from "@/lib/db/repository";
+import { appendRideRoute, getRide } from "@/lib/db/repository";
 
 const MAX_ROUTE_POINTS = 500;
 
@@ -32,6 +32,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ rid
     }
 
     const routePoints = points.filter((point): point is RoutePoint => point !== null);
+    const ride = await getRide(rideId);
+    if (!ride) {
+      return jsonError(`Ride ${rideId} was not found.`, 404);
+    }
+
+    const lastRouteTime = ride.route.at(-1)?.t ?? -1;
+    const nonMonotonicIndex = findNonMonotonicRoutePointIndex(routePoints, lastRouteTime);
+    if (nonMonotonicIndex !== -1) {
+      return jsonError(`Route point at index ${nonMonotonicIndex} must have t greater than the previous route point.`, 400);
+    }
+
     const result = await appendRideRoute(rideId, routePoints);
     if (!result) {
       return jsonError(`Ride ${rideId} was not found.`, 404);
@@ -73,6 +84,15 @@ function sanitizeRoutePoint(point: RoutePointInput): RoutePoint | null {
 
 function coerceRoutePointInput(value: unknown): RoutePointInput {
   return isRecord(value) ? value : {};
+}
+
+function findNonMonotonicRoutePointIndex(points: RoutePoint[], previousTime: number) {
+  let lastTime = previousTime;
+  for (const [index, point] of points.entries()) {
+    if (point.t <= lastTime) return index;
+    lastTime = point.t;
+  }
+  return -1;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

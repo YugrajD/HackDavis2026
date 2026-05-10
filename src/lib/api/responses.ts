@@ -74,6 +74,16 @@ export function handleApiError(error: unknown, fallbackMessage = "Request failed
     return jsonError(error.message, error.status);
   }
 
+  if (isStatusError(error)) {
+    return jsonError(error.message, error.status);
+  }
+
   console.error(fallbackMessage, error);
   return jsonError(fallbackMessage, 500);
+}
+
+function isStatusError(error: unknown): error is { message: string; status: number } {
+  if (typeof error !== "object" || error === null) return false;
+  const candidate = error as { message?: unknown; status?: unknown };
+  return typeof candidate.message === "string" && typeof candidate.status === "number" && candidate.status >= 400 && candidate.status <= 599;
 }

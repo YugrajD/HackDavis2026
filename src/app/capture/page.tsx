@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import type { AnalyzeAndSaveMediaResponse, AppendRideRouteResponse, CameraRole, FrameDetection, FrameObservation, HazardEvent, MediaUploadResponse, PerceptionResult, Ride, RideMode, RoutePoint, TrackedObject } from "@/lib/contracts";
 import { analyzeFrameObservation } from "@/lib/perception/frame-pipeline";
 import { analyzeFrameInWorker, createPerceptionWorker } from "@/lib/perception/worker-client";
@@ -233,71 +234,115 @@ export default function CapturePage() {
     }
   }
 
+  const resolvedRideId = resolveRideId(activeRideId, rideId);
+  const lastProvider = analysis?.provider ?? "pending";
+  const workerStatus = analysis?.perception ? `${analysis.perception.tracks.length} tracks` : "seed ready";
+  const lastSeverity = analysis ? Math.round(analysis.severity).toString() : "—";
+  const lastHazard = analysis?.type.replaceAll("_", " ") ?? "none";
+  const lastEventId = lastEvent?.id ?? "—";
+
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-6 py-8 text-slate-100 sm:px-10 lg:px-12">
-      <header className="flex flex-col justify-between gap-4 border-b border-white/10 pb-5 sm:flex-row sm:items-end">
-        <div>
-          <p className="font-mono text-xs uppercase tracking-[0.32em] text-cyanline">Guardian Road capture</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Camera to hazard event</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-            This page captures one live frame, uploads the frame evidence, asks the AI endpoint for structured risk, stores an event, then triggers the voice alert endpoint.
+    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-5 py-6 sm:px-8 lg:px-12">
+      <header className="flex flex-col justify-between gap-4 border-b border-line pb-5 sm:flex-row sm:items-end">
+        <div className="space-y-2">
+          <p className="font-mono text-[10px] uppercase tracking-[0.4em] text-amber">guardian road · capture</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-roadText sm:text-3xl">Sensor console</h1>
+          <p className="max-w-2xl text-sm leading-6 text-roadText-muted">
+            Captures one live frame, uploads evidence, classifies risk, persists a hazard event, appends route point, and dispatches a voice alert.
           </p>
         </div>
-        <div className={`rounded-full px-4 py-2 font-mono text-xs uppercase tracking-[0.18em] ${statusClass(status)}`}>{status}</div>
+        <div className={`border px-3 py-1 font-mono text-[10px] uppercase tracking-[0.3em] ${statusClass(status)}`}>{status}</div>
       </header>
 
-      <section className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-        <div className="overflow-hidden rounded-3xl border border-white/10 bg-panel shadow-2xl shadow-black/30">
-          <video ref={videoRef} className="aspect-video w-full bg-black object-cover" playsInline muted />
-          <canvas ref={canvasRef} className="hidden" />
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 p-4">
-            <p className="text-sm text-slate-300">{message}</p>
-            <div className="flex gap-3">
-              <button className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold hover:border-cyanline/70" onClick={startCamera} type="button">
-                Restart camera
-              </button>
-              <button
-                className="rounded-full bg-cyanline px-5 py-2 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={status === "capturing" || rideBusy}
-                onClick={captureAndIngest}
-                type="button"
-              >
-                Capture hazard
-              </button>
+      <section className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <div className="border border-line bg-surface">
+          <div className="grid gap-2 border-b border-line px-4 py-2 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[10px] uppercase tracking-[0.3em]">
+              <RailReadout label="camera" value={camera} />
+              <RailReadout label="ride" value={resolvedRideId} />
+              <RailReadout label="provider" value={lastProvider} />
+              <RailReadout label="worker" value={workerStatus} />
             </div>
+            <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-roadText-dim">operations viewport · 16:9</span>
+          </div>
+          <div className="relative">
+            <video ref={videoRef} className="aspect-video w-full bg-void object-cover" playsInline muted />
+            <canvas ref={canvasRef} className="hidden" />
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.05)_1px,transparent_1px)] bg-[length:24px_24px]" aria-hidden="true" />
+            <div className="pointer-events-none absolute inset-0 border border-line" aria-hidden="true" />
+          </div>
+          <div className="border-t border-line bg-void/55 px-4 py-3" aria-live="polite" role="status">
+            <p className="font-mono text-[11px] leading-snug text-roadText-muted"><span className="text-amber">status</span> / {message}</p>
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-line px-4 py-3">
+            <button
+              className="inline-flex min-h-[44px] items-center border border-line-strong px-4 py-2 font-mono text-[11px] uppercase tracking-[0.22em] text-roadText transition-colors duration-150 ease-out hover:border-amber/60 hover:text-amber"
+              onClick={startCamera}
+              type="button"
+            >
+              Restart camera
+            </button>
+            <button
+              className="inline-flex min-h-[44px] items-center border border-amber bg-amber px-5 py-2 font-mono text-[11px] uppercase tracking-[0.22em] text-void transition-colors duration-150 ease-out hover:bg-orange disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={status === "capturing" || rideBusy}
+              onClick={captureAndIngest}
+              type="button"
+            >
+              Capture hazard
+            </button>
           </div>
         </div>
 
-        <aside className="space-y-4">
-          <div className="rounded-3xl border border-white/10 bg-panel/80 p-5">
-            <h2 className="font-mono text-xs uppercase tracking-[0.22em] text-slate-400">sensor context</h2>
-            <div className="mt-4 grid gap-3">
-              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="font-mono text-xs uppercase tracking-[0.18em] text-slate-500">active ride</p>
-                    <p className="mt-1 font-mono text-xs text-cyanline">{resolveRideId(activeRideId, rideId)}</p>
-                  </div>
-                  <p className="font-mono text-xs text-slate-500">route points +{routePointCount}</p>
+        <aside className="flex flex-col gap-4">
+          <div className="border border-line bg-surface">
+            <div className="border-b border-line px-4 py-2">
+              <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-roadText-muted">ride lifecycle</p>
+            </div>
+            <div className="space-y-3 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-roadText-dim">active ride</p>
+                  <p className="mt-1 font-mono text-xs text-telemetry">{resolvedRideId}</p>
                 </div>
-                <p className="mt-2 text-xs text-slate-500">Uses {demoRideId} until a live ride starts.</p>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button className="rounded-full bg-cyanline px-3 py-2 text-xs font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50" disabled={!!activeRideId || rideBusy || status === "capturing"} onClick={startRide} type="button">
-                    Start ride
-                  </button>
-                  <button className="rounded-full border border-white/15 px-3 py-2 text-xs font-semibold text-slate-200 disabled:cursor-not-allowed disabled:opacity-50" disabled={!activeRideId || rideBusy || status === "capturing"} onClick={endRide} type="button">
-                    End ride
-                  </button>
-                </div>
+                <p className="font-mono text-[11px] tabular-nums text-roadText-muted">route +{routePointCount}</p>
               </div>
-              <label className="grid gap-1 text-sm text-slate-300">
-                Ride ID fallback
-                <input className="rounded-2xl border border-white/10 bg-slate-950 px-3 py-2 text-white outline-none focus:border-cyanline" value={rideId} onChange={(event) => setRideId(event.target.value)} />
-              </label>
-              <label className="grid gap-1 text-sm text-slate-300">
-                Ride mode
+              <p className="font-mono text-[11px] text-roadText-dim">falls back to {demoRideId} until ride starts</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  className="inline-flex min-h-[44px] items-center justify-center border border-amber bg-amber px-3 py-2 font-mono text-[11px] uppercase tracking-[0.22em] text-void transition-colors duration-150 ease-out hover:bg-orange disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!!activeRideId || rideBusy || status === "capturing"}
+                  onClick={startRide}
+                  type="button"
+                >
+                  Start ride
+                </button>
+                <button
+                  className="inline-flex min-h-[44px] items-center justify-center border border-line-strong px-3 py-2 font-mono text-[11px] uppercase tracking-[0.22em] text-roadText transition-colors duration-150 ease-out hover:border-amber/60 hover:text-amber disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!activeRideId || rideBusy || status === "capturing"}
+                  onClick={endRide}
+                  type="button"
+                >
+                  End ride
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="border border-line bg-surface">
+            <div className="border-b border-line px-4 py-2">
+              <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-roadText-muted">sensor parameters</p>
+            </div>
+            <div className="grid gap-3 p-4">
+              <Field label="Ride ID fallback">
+                <input
+                  className="w-full border border-line bg-void px-3 py-2 font-mono text-xs text-roadText outline-none focus-visible:border-amber"
+                  value={rideId}
+                  onChange={(event) => setRideId(event.target.value)}
+                />
+              </Field>
+              <Field label="Ride mode">
                 <select
-                  className="rounded-2xl border border-white/10 bg-slate-950 px-3 py-2 text-white outline-none focus:border-cyanline"
+                  className="w-full border border-line bg-void px-3 py-2 font-mono text-xs text-roadText outline-none focus-visible:border-amber"
                   value={rideMode}
                   onChange={(event) => setRideMode(event.target.value as RideMode)}
                 >
@@ -305,11 +350,10 @@ export default function CapturePage() {
                   <option value="scooter">scooter</option>
                   <option value="car">car</option>
                 </select>
-              </label>
-              <label className="grid gap-1 text-sm text-slate-300">
-                Camera
+              </Field>
+              <Field label="Camera role">
                 <select
-                  className="rounded-2xl border border-white/10 bg-slate-950 px-3 py-2 text-white outline-none focus:border-cyanline"
+                  className="w-full border border-line bg-void px-3 py-2 font-mono text-xs text-roadText outline-none focus-visible:border-amber"
                   value={camera}
                   onChange={(event) => setCamera(event.target.value as CameraRole)}
                 >
@@ -317,11 +361,10 @@ export default function CapturePage() {
                   <option value="rear">rear</option>
                   <option value="dashcam">dashcam</option>
                 </select>
-              </label>
-              <label className="grid gap-1 text-sm text-slate-300">
-                Worker perception seed
+              </Field>
+              <Field label="Worker perception seed">
                 <select
-                  className="rounded-2xl border border-white/10 bg-slate-950 px-3 py-2 text-white outline-none focus:border-cyanline"
+                  className="w-full border border-line bg-void px-3 py-2 font-mono text-xs text-roadText outline-none focus-visible:border-amber"
                   value={perceptionPreset}
                   onChange={(event) => setPerceptionPreset(event.target.value as PerceptionPreset)}
                 >
@@ -331,41 +374,92 @@ export default function CapturePage() {
                   <option value="cross_traffic">cross traffic</option>
                   <option value="clear">clear path</option>
                 </select>
-              </label>
+              </Field>
               <div className="grid grid-cols-2 gap-3">
                 <NumberField label="Speed m/s" value={speedMps} onChange={setSpeedMps} />
                 <NumberField label="Heading" value={headingDeg} onChange={setHeadingDeg} />
               </div>
-              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-3 font-mono text-xs text-slate-400">
+              <div className="border border-line bg-void px-3 py-2 font-mono text-[11px] tabular-nums text-telemetry">
                 {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
               </div>
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-panel/80 p-5">
-            <h2 className="font-mono text-xs uppercase tracking-[0.22em] text-slate-400">last result</h2>
-            {analysis ? (
-              <div className="mt-4 space-y-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-300">{analysis.type.replaceAll("_", " ")}</span>
-                  <span className="rounded-full bg-critical/15 px-3 py-1 font-mono text-red-200">{Math.round(analysis.severity)}</span>
-                </div>
-                <p className="font-mono text-xs uppercase tracking-[0.18em] text-cyanline">provider {analysis.provider}</p>
-                <p className="text-slate-300">{analysis.spokenAlert}</p>
-                <p className="text-slate-400">{analysis.explanation}</p>
-                {analysis.perception ? <p className="font-mono text-xs text-slate-500">worker risk {analysis.perception.risk.type} · {Math.round(analysis.perception.risk.severity)} · {analysis.perception.tracks.length} tracks</p> : null}
-                <ObjectList objects={analysis.objects} />
-                {lastEvent ? <p className="font-mono text-xs text-cyanline">event {lastEvent.id}</p> : null}
-              </div>
-            ) : (
-              <p className="mt-4 text-sm text-slate-400">No captured hazard yet.</p>
-            )}
+          <div className="border border-line bg-surface">
+            <div className="border-b border-line px-4 py-2">
+              <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-roadText-muted">telemetry</p>
+            </div>
+            <div className="grid grid-cols-2 border-b border-line sm:grid-cols-3">
+              <TelemetryCell label="ride id" value={resolvedRideId} tone="cyan" />
+              <TelemetryCell label="route pts" value={routePointCount.toString()} tone="cyan" />
+              <TelemetryCell label="provider" value={lastProvider} tone="cyan" />
+              <TelemetryCell label="severity" value={lastSeverity} tone={analysis ? "amber" : "muted"} />
+              <TelemetryCell label="hazard" value={lastHazard} tone={analysis ? "amber" : "muted"} />
+              <TelemetryCell label="event" value={lastEventId} tone={lastEvent ? "cyan" : "muted"} />
+            </div>
           </div>
 
-          {lastFrame ? <img className="rounded-3xl border border-white/10" src={lastFrame} alt="Last captured road frame" /> : null}
+          <div className="border border-line bg-surface">
+            <div className="border-b border-line px-4 py-2">
+              <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-roadText-muted">last result</p>
+            </div>
+            <div className="p-4">
+              {analysis ? (
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs uppercase tracking-[0.18em] text-roadText">{analysis.type.replaceAll("_", " ")}</span>
+                    <span className="border border-critical/60 px-2 py-1 font-mono text-[11px] tabular-nums text-critical">sev {Math.round(analysis.severity)}</span>
+                  </div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-telemetry">provider {analysis.provider}</p>
+                  <p className="text-roadText">{analysis.spokenAlert}</p>
+                  <p className="text-roadText-muted">{analysis.explanation}</p>
+                  {analysis.perception ? (
+                    <p className="font-mono text-[11px] text-roadText-dim">
+                      worker {analysis.perception.risk.type} · {Math.round(analysis.perception.risk.severity)} · {analysis.perception.tracks.length} tracks
+                    </p>
+                  ) : null}
+                  <ObjectList objects={analysis.objects} />
+                  {lastEvent ? <p className="font-mono text-[11px] text-telemetry">event {lastEvent.id}</p> : null}
+                </div>
+              ) : (
+                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-roadText-dim">no hazard captured</p>
+              )}
+            </div>
+          </div>
+
+          {lastFrame ? <img className="border border-line" src={lastFrame} alt="Last captured road frame" /> : null}
         </aside>
       </section>
     </main>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="grid gap-1">
+      <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-roadText-dim">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function RailReadout({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className="text-roadText-dim">{label}</span>
+      <span className="text-telemetry">{value}</span>
+    </span>
+  );
+}
+
+function TelemetryCell({ label, value, tone }: { label: string; value: string; tone: "amber" | "cyan" | "muted" }) {
+  const toneClass = tone === "amber" ? "text-amber" : tone === "cyan" ? "text-telemetry" : "text-roadText-dim";
+
+  return (
+    <div className="border-r border-line px-3 py-2 last:border-r-0 sm:[&:nth-child(3n)]:border-r-0">
+      <p className="font-mono text-[9px] uppercase tracking-[0.24em] text-roadText-dim">{label}</p>
+      <p className={`mt-1 truncate font-mono text-[11px] tabular-nums ${toneClass}`}>{value}</p>
+    </div>
   );
 }
 
@@ -445,10 +539,10 @@ function seededDetections(preset: PerceptionPreset): FrameDetection[] {
 
 function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
   return (
-    <label className="grid gap-1 text-sm text-slate-300">
-      {label}
+    <label className="grid gap-1">
+      <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-roadText-dim">{label}</span>
       <input
-        className="rounded-2xl border border-white/10 bg-slate-950 px-3 py-2 text-white outline-none focus:border-cyanline"
+        className="w-full border border-line bg-void px-3 py-2 font-mono text-xs tabular-nums text-roadText outline-none focus-visible:border-amber"
         type="number"
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
@@ -458,11 +552,11 @@ function NumberField({ label, value, onChange }: { label: string; value: number;
 }
 
 function ObjectList({ objects }: { objects: TrackedObject[] }) {
-  if (!objects.length) return <p className="font-mono text-xs text-slate-500">no tracked objects</p>;
+  if (!objects.length) return <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-roadText-dim">no tracked objects</p>;
   return (
-    <ul className="space-y-2">
+    <ul className="divide-y divide-line border border-line">
       {objects.map((object) => (
-        <li key={object.id} className="rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-xs text-slate-300">
+        <li key={object.id} className="px-3 py-2 font-mono text-[11px] text-roadText">
           {object.type} · {(object.confidence * 100).toFixed(0)}%{object.distanceM ? ` · ${object.distanceM.toFixed(1)}m` : ""}
         </li>
       ))}
@@ -512,14 +606,14 @@ function playVoiceAlert(response: VoiceResponse) {
 function statusClass(status: CaptureStatus) {
   switch (status) {
     case "saved":
-      return "bg-cyanline/15 text-cyanline";
+      return "border-telemetry/60 text-telemetry";
     case "capturing":
-      return "bg-warning/15 text-amber-200";
+      return "border-amber/60 text-amber";
     case "error":
-      return "bg-critical/15 text-red-200";
+      return "border-critical/60 text-critical";
     case "camera-ready":
-      return "bg-white/10 text-slate-200";
+      return "border-line-strong text-roadText";
     default:
-      return "bg-slate-800 text-slate-400";
+      return "border-line text-roadText-dim";
   }
 }

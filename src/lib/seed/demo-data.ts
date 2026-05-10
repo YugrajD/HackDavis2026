@@ -1,4 +1,5 @@
 import type { DangerSegment, HazardEvent, ReplayPayload, Ride } from "@/lib/contracts";
+import { computeDangerSegments } from "@/lib/geo/danger-segments";
 
 export const demoRide: Ride = {
   id: "demo-ride-1",
@@ -194,41 +195,7 @@ export const demoEvents: HazardEvent[] = [
   },
 ];
 
-export const demoDangerSegments: DangerSegment[] = [
-  {
-    id: "seg-russell-olive",
-    label: "Russell Blvd approach near Olive Dr",
-    centerLat: 38.54501,
-    centerLng: -121.73875,
-    score: 82,
-    eventCount: 3,
-    topTypes: ["close_pass", "blocked_bike_lane", "door_zone"],
-    lastSeen: "2026-05-09T16:23:04.000Z",
-    explanation: "Repeated lateral-clearance hazards around parked and stopped vehicles create a forced-merge pattern.",
-  },
-  {
-    id: "seg-anderson-crossing",
-    label: "Anderson Rd intersection crossing",
-    centerLat: 38.54455,
-    centerLng: -121.73591,
-    score: 91,
-    eventCount: 2,
-    topTypes: ["intersection_conflict", "pedestrian_conflict"],
-    lastSeen: "2026-05-09T16:26:32.000Z",
-    explanation: "Crossing movement conflicts concentrate where turning vehicles, riders, and pedestrians share short sight lines.",
-  },
-  {
-    id: "seg-third-pavement",
-    label: "3rd St pavement break",
-    centerLat: 38.54491,
-    centerLng: -121.73678,
-    score: 54,
-    eventCount: 1,
-    topTypes: ["pothole"],
-    lastSeen: "2026-05-09T16:23:58.000Z",
-    explanation: "Surface damage sits directly in the expected rider line and creates avoid-or-brake behavior.",
-  },
-];
+export const demoDangerSegments: DangerSegment[] = computeDangerSegments(demoEvents);
 
 export function getDemoReplayPayload(rideId: string): ReplayPayload | null {
   if (rideId !== demoRide.id) {

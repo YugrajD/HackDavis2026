@@ -3,6 +3,7 @@ import { PROVIDER_NAMES } from "@/lib/contracts";
 import type { DangerSegment, HazardEvent } from "@/lib/contracts";
 import { handleApiError, jsonError, readJsonBody, requireJsonObject } from "@/lib/api/responses";
 import { generateSafetyReport, generateSafetyReportWithClaude } from "@/lib/ai/report";
+import { validateCallerEvents, validateCallerSegment } from "@/lib/api/report-input";
 import { getSponsorConfig } from "@/lib/config/server";
 import { listDangerSegments, listEvents } from "@/lib/db/repository";
 import { resolveDangerSegment } from "@/lib/geo/danger-segments";
@@ -15,20 +16,22 @@ export async function POST(request: Request) {
       events?: HazardEvent[];
     }>(await readJsonBody<unknown>(request, { allowEmpty: true, maxBytes: 256 * 1024 }));
 
+    const callerSegment = validateCallerSegment(body.segment);
+    const callerEvents = validateCallerEvents(body.events);
     const segments = await listDangerSegments();
     const requestedSegment = body.segmentId ? resolveDangerSegment(segments, body.segmentId) : undefined;
 
-    if (body.segmentId && !requestedSegment && !body.segment) {
+    if (body.segmentId && !requestedSegment && !callerSegment) {
       return jsonError(`Danger segment ${body.segmentId} was not found.`, 404);
     }
 
-    const segment = body.segment ?? requestedSegment ?? segments[0];
+    const segment = callerSegment ?? requestedSegment ?? segments[0];
 
     if (!segment) {
       return jsonError("No danger segment available for report generation.", 404);
     }
 
-    const eventPool = Array.isArray(body.events) ? body.events.slice(0, 100) : await listEvents();
+    const eventPool = callerEvents ?? (await listEvents());
     const relatedEvents = eventPool.filter((event) => segment.topTypes.includes(event.type));
     const eventsForReport = relatedEvents.length ? relatedEvents : eventPool;
 

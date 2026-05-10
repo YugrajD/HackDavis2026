@@ -42,6 +42,7 @@ export async function POST(request: Request) {
     const status = result.note ? 503 : 200;
     return NextResponse.json(
       {
+        ...(result.note ? { error: result.note, status } : {}),
         detections: result.detections,
         width: result.width,
         height: result.height,
