@@ -3,70 +3,50 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
-  --gr-void: #050608;
-  --gr-asphalt: #080a0d;
-  --gr-surface: #0c1116;
-  --gr-surface-raised: #111820;
-  --gr-surface-hot: #17120b;
-  --gr-line: #1f2a33;
-  --gr-line-strong: #33424d;
-  --gr-text: #e8edf0;
-  --gr-text-muted: #9aa6ad;
-  --gr-text-dim: #5f6b74;
-  --gr-amber: #f59e0b;
-  --gr-orange: #f97316;
-  --gr-critical: #fb4e1b;
-  --gr-telemetry: #22d3ee;
-  --gr-grid: rgba(148, 163, 184, 0.07);
-  background: var(--gr-asphalt);
-  color: var(--gr-text);
+  color-scheme: light;
+
+  /* Travelperk palette */
+  --electric-lime: #beff50;
+  --near-black:    #14140f;
+  --pure-black:    #000000;
+  --pure-white:    #ffffff;
+  --warm-cream:    #f5f5eb;
+  --parchment:     #fafaf5;
+  --stone:         #d2d2c8;
+  --graphite:      #6e6e64;
+  --charcoal:      #30302a;
+  --slate-border:  #919183;
+  --mint-confirm:  #1dc479;
+  --coral-alert:   #eb3131;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-html {
+html, body {
   min-height: 100%;
-  background: var(--gr-asphalt);
-}
-
-body {
-  min-height: 100vh;
   margin: 0;
-  background:
-    linear-gradient(rgba(148, 163, 184, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.045) 1px, transparent 1px),
-    radial-gradient(circle at 50% -20%, rgba(245, 158, 11, 0.08), transparent 26rem),
-    var(--gr-asphalt);
-  background-size: 48px 48px, 48px 48px, auto, auto;
-  color: var(--gr-text);
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--warm-cream);
+  color: var(--near-black);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Geist", "Cabinet Grotesk", "General Sans", "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+a { color: inherit; text-decoration: none; }
+
+::selection {
+  background: var(--electric-lime);
+  color: var(--near-black);
 }
 
 :focus-visible {
-  outline: 2px solid var(--gr-amber);
+  outline: 2px solid var(--near-black);
   outline-offset: 2px;
 }
 
-::selection {
-  background: rgba(245, 158, 11, 0.32);
-  color: var(--gr-text);
-}
-
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
   }
 }

@@ -25,9 +25,11 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Guardian Road tags saved clips with GPS location for the hazard map.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Guardian Road records audio with your clips.</string>
+	<string>Guardian Road records audio with your clips and listens for voice commands.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Guardian Road saves hazard clips to your photo library.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Guardian Road listens for the 'save clip' voice command to trigger hazard saves.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

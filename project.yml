@@ -24,7 +24,8 @@ targets:
       properties:
         CFBundleDisplayName: "Guardian Road"
         NSCameraUsageDescription: "Guardian Road needs your camera for dashcam recording."
-        NSMicrophoneUsageDescription: "Guardian Road records audio with your clips."
+        NSMicrophoneUsageDescription: "Guardian Road records audio with your clips and listens for voice commands."
+        NSSpeechRecognitionUsageDescription: "Guardian Road listens for the 'save clip' voice command to trigger hazard saves."
         NSPhotoLibraryAddUsageDescription: "Guardian Road saves hazard clips to your photo library."
         NSLocationWhenInUseUsageDescription: "Guardian Road tags saved clips with GPS location for the hazard map."
         UIBackgroundModes:

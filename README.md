@@ -1,90 +1,171 @@
 # Guardian Road
 
-HackDavis 2026 project: shared-road safety intelligence for bikes, scooters, and cars.
+> Phones become road safety sensors. Mount on a bike, scooter, or dashboard — Guardian Road detects hazards in real time, voices alerts, and gives cities the data to fix dangerous streets.
 
-Guardian Road turns phones into road safety sensors. Bike/scooter phones warn riders in real time. Car-mounted phones act as AI dashcams. Both generate geotagged hazard events that feed a records dashboard, 3D safety replay, Davis danger map, and civic safety reports.
+**HackDavis 2026** · Davis, CA
 
-## Read first
+---
 
-- `AGENTS.md` — coordination rules and file ownership.
-- `docs/PROJECT_BRIEF.md` — product and demo arc.
-- `docs/API_CONTRACT.md` — shared data contract and endpoints.
-- `docs/FRIEND_TASKS.md` — independent task specs for replay and records.
-- `docs/REUSE_PLAN.md` — what to reuse from inspiration repos.
-- `docs/INTEGRATION_STATUS.md` — blockers and contract changes.
-- `docs/BACKEND_WIRED_RUNBOOK.md` — wired endpoints, env keys, judge demo runbook, reuse permission, and remaining work.
-- `docs/YOLO_MOBILE_RUNBOOK.md` — Next + YOLO sidecar + Expo handoff over LAN Wi-Fi.
-- `docs/SPONSOR_SETUP.md` — Atlas, Gemini, Anthropic, ElevenLabs, YOLO, and Expo token/setup checklist.
+## What it does
 
-## Core loop
+A unified safety pipeline for shared roads, running across three sensor modes:
 
-```txt
+| Type | Mode | Role |
+|------|--------|------|
+| **01** | Bike | Rider-mounted detection of vehicles, pedestrians, door zones, blocked bike lanes |
+| **02** | Scooter | Same pipeline, tuned for scooter speeds and shared micro-mobility paths |
+| **03** | Car | Dashcam mode warning drivers about cyclists, pedestrians, and unsafe passing |
+
+Every detected hazard becomes a **geotagged event** with a saved video clip, a spoken alert, a 3D replay, and aggregated heatmap data the city can act on.
+
+## The pipeline
+
+```
 camera + GPS + IMU
-→ hazard detection
-→ spoken alert
-→ saved event
-→ records dashboard
-→ 3D replay
-→ Davis danger map
-→ safety report
+  → on-device YOLO detection
+  → cloud frame analysis (Gemini)
+  → spoken alert (ElevenLabs)
+  → saved event (MongoDB Atlas)
+  → records dashboard
+  → 3D replay (Three.js / R3F)
+  → Davis danger map
+  → city safety report (Claude)
 ```
 
-## Backend demo status
+## Stack
 
-The backend is wired for the judge/friends demo. Seed `demo-ride-1`, then replay can use `/api/replay/demo-ride-1` and records can use `/api/events?rideId=demo-ride-1`, `/api/danger-segments`, `/api/ai/report`, and `/api/reports/export`. The app runs without secrets through memory/stub providers; real Atlas, Gemini, Claude, and ElevenLabs keys go only in `.env.local`.
+**Native iOS** (`GuardianRoad/`) — SwiftUI dashcam app with multicam picture-in-picture, full Apple Maps navigation overlay (compass, minimap, turn-by-turn in imperial units), live YOLO frame inference, voice command (`"save clip"`), and a clip gallery with full-screen playback.
 
-Quick local check:
+**Next.js web** (`src/app/`) — Backend APIs and dashboards. Records console, replay console, scenario generator, safety report exports.
+
+**Python YOLO sidecar** (`services/yolo/`) — FastAPI server running YOLOv8 for real-time perception. Falls back gracefully when offline.
+
+**Three.js replay** (`src/components/replay/`) — R3F scene reconstructing rides as a road ribbon following the GPS curve, with bike + car actors, lane markings, hazard markers, and timeline scrubbing.
+
+## Sponsor integrations
+
+| Sponsor | Role |
+|---------|------|
+| **MongoDB Atlas** | Ride + event persistence with geo indexing |
+| **Gemini** | Vision frame analysis |
+| **Claude** | City corridor safety report generation |
+| **ElevenLabs** | Real-time voice hazard alerts |
+| **YOLO** | On-device perception |
+
+## Quick start
+
+### 1. Backend (Next.js)
 
 ```bash
 cp .env.example .env.local
+# Fill in API keys (or leave blank for stub fallbacks)
 npm install
 npm run dev
 ```
 
-Then in another terminal:
+Open <http://localhost:3000>.
+
+Verify everything is wired:
 
 ```bash
 npm run demo:doctor
 ```
 
-The doctor seeds the demo and checks readiness, provider status, replay, events, and danger segments against `API_BASE_URL` (default `http://localhost:3000`). See `docs/BACKEND_WIRED_RUNBOOK.md` for the full endpoint matrix, env key list, and demo commands.
-
-## Expo mobile (Expo Go)
-
-The Expo app lives in **`apps/mobile`**. Do **not** run `npx expo start` from the **repo root** — there is no `expo` package there, so you will see “Cannot determine the project's Expo SDK version”.
-
-From repo root (uses the same `expo` as the mobile app):
+### 2. YOLO sidecar (optional, for live detection)
 
 ```bash
-npm run sim
-# or any expo subcommand, e.g.:
-npm run expo -- start --lan
+cd services/yolo
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-Or change into the app folder:
+Then add to `.env.local`:
+
+```
+YOLO_SERVICE_URL=http://127.0.0.1:8000
+```
+
+### 3. Native iOS app
 
 ```bash
-cd apps/mobile
-npx expo start --lan
+xcodegen generate
+open GuardianRoad.xcodeproj
 ```
 
-See `apps/mobile/README.md` and `docs/YOLO_MOBILE_RUNBOOK.md` for LAN IP / `EXPO_PUBLIC_API_BASE_URL` and the Next + YOLO sidecar.
+In Xcode → Signing & Capabilities → set your team and a unique bundle identifier (e.g. `com.yourname.guardianroad`). Plug in an iPhone or iPad and hit ▶.
 
-## Track targets
+The app reads `apiBase` from `AppConfig.swift` — set it to your Mac's LAN IP so the device can reach the backend over Wi-Fi:
 
-Primary:
+```bash
+ipconfig getifaddr en0
+```
+
+## Project layout
+
+```
+GuardianRoad/              Native iOS dashcam app (SwiftUI)
+  Core/Camera/             Multicam capture + rolling recorder
+  Core/Navigation/         CoreLocation heading + MapKit routing
+  Core/Perception/         YOLO client, scene depth manager
+  Core/Voice/              SFSpeechRecognizer "save clip" voice command
+  Core/Gallery/            Saved events client
+  UI/                      DashcamView, NavigationOverlay, GalleryView
+
+src/                       Next.js web app
+  app/                     Pages + API routes
+    api/                   Rides, events, perception, AI, scenarios
+    capture/               Browser-based capture sensor
+    records/               Records console
+    replay/[rideId]/       3D replay page
+  components/replay/       Three.js scene + console
+  components/records/      Records UI
+  lib/                     AI, db, perception, scenarios, contracts
+
+apps/mobile/               Expo React Native app (Expo Go)
+
+services/yolo/             Python YOLOv8 FastAPI sidecar
+
+scripts/                   Smoke tests, demo doctor, scenario gen
+```
+
+## Demo flow
+
+1. **Start a ride** in the iOS app (red recording dot) → GPS + camera + perception begin
+2. **Hazards trigger automatically** when YOLO detects a high-risk scene → voice alert + saved clip
+3. **Or say `"save clip"`** to manually capture the current frame
+4. **Open the gallery** → tap any clip to play full-screen
+5. **On the web dashboard**, view the records console, the 3D replay of the ride, and Claude's generated safety report for the corridor
+
+## Docs
+
+- `AGENTS.md` — file ownership and coordination
+- `docs/PROJECT_BRIEF.md` — product brief and demo arc
+- `docs/API_CONTRACT.md` — shared data contract
+- `docs/BACKEND_WIRED_RUNBOOK.md` — full endpoint matrix and demo commands
+- `docs/YOLO_MOBILE_RUNBOOK.md` — Next + YOLO sidecar over LAN
+- `docs/SPONSOR_SETUP.md` — Atlas / Gemini / Anthropic / ElevenLabs setup
+- `docs/FRONTEND_POLISH_PLAN.md` — UI polish plan
+
+## Tracks
+
+**Primary:**
 
 1. Best Hack for Social Good
-2. Best AI/ML Hack, sponsored by Anthropic
+2. Best AI/ML Hack — sponsored by Anthropic
 3. Best Use of Gemini API
 4. Best Use of ElevenLabs
 5. Best Use of MongoDB Atlas
 
-Secondary:
+**Secondary:**
 
-- Best UI/UX Design, sponsored by Figma
+- Best UI/UX Design — sponsored by Figma
 - Best Hardware Hack
 - Most Technically Challenging Hack
 - Best Use of DAC Materials
 - Best use of Reconstruct
 - Hacker's Choice
+
+---
+
+Built at HackDavis 2026.

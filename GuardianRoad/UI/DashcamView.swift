@@ -3,6 +3,7 @@ import AVFoundation
 
 struct DashcamView: View {
     @StateObject private var vm = DashcamViewModel()
+    @StateObject private var voice = VoiceCommandManager()
     @State private var pulse = false
     @State private var showNavSearch = false
     @State private var showGallery = false
@@ -46,8 +47,15 @@ struct DashcamView: View {
                     .zIndex(10)
             }
         }
-        .onAppear { vm.start() }
-        .onDisappear { vm.stop() }
+        .onAppear {
+            vm.start()
+            voice.onSaveClip = { vm.triggerSave(reason: "voice") }
+            voice.requestPermissionAndStart(audioPublisher: vm.camera.audioPublisher)
+        }
+        .onDisappear {
+            vm.stop()
+            voice.stop()
+        }
         .sheet(isPresented: $showNavSearch) {
             DestinationSearchView(nav: vm.navigation)
         }
