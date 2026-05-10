@@ -26,6 +26,10 @@ pnpm-debug.log*
 # TypeScript
 *.tsbuildinfo
 
+# Xcode (Expo prebuild ios/ or local tooling)
+**/xcuserdata/
+*.xcuserstate
+
 # runtime/generated artifacts
 /public/generated/uploads/
 /public/generated/reports/

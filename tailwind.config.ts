@@ -5,11 +5,23 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        asphalt: "#080b0f",
-        panel: "#101820",
-        cyanline: "#67e8f9",
+        void: "#050608",
+        asphalt: "#080a0d",
+        surface: "#0c1116",
+        "surface-raised": "#111820",
+        "surface-hot": "#17120b",
+        line: "#1f2a33",
+        "line-strong": "#33424d",
+        roadText: "#e8edf0",
+        "roadText-muted": "#9aa6ad",
+        "roadText-dim": "#5f6b74",
+        amber: "#f59e0b",
+        orange: "#f97316",
+        critical: "#fb4e1b",
+        telemetry: "#22d3ee",
+        panel: "#0c1116",
+        cyanline: "#22d3ee",
         warning: "#f59e0b",
-        critical: "#ef4444",
       },
       fontFamily: {
         sans: ["var(--font-geist-sans)", "ui-sans-serif", "system-ui"],

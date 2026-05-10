@@ -1,6 +1,7 @@
 import type { Db } from "mongodb";
 import type { CameraRole, DangerSegment, HazardEvent, HazardType, ReplayPayload, Ride, RideMode, RoutePoint } from "@/lib/contracts";
 import { mongoEventSort, sortEventsNewestFirst, type EventSortOrder } from "@/lib/db/event-ordering";
+import { isDuplicateKeyError, PersistenceConflictError } from "@/lib/db/errors";
 import { getMongoDb, isMongoConfigured, point } from "@/lib/db/mongo";
 import { computeDangerSegments, sortDangerSegments } from "@/lib/geo/danger-segments";
 import { demoDangerSegments, demoEvents, demoRide } from "@/lib/seed/demo-data";
@@ -57,7 +58,12 @@ export async function createRide(input: CreateRideInput): Promise<Persisted<Ride
   if (!db) return { value: createMemoryRide(input), persisted: "memory" };
 
   const ride = buildRide(input);
-  await db.collection<Ride>("rides").insertOne({ ...ride });
+  try {
+    await db.collection<Ride>("rides").insertOne({ ...ride });
+  } catch (error) {
+    if (isDuplicateKeyError(error)) throw new PersistenceConflictError(`Ride ${ride.id} already exists.`);
+    throw error;
+  }
   return { value: ride, persisted: "mongodb" };
 }
 
@@ -130,7 +136,13 @@ export async function createEvent(input: Partial<HazardEvent>): Promise<Persiste
   if (!db) return { value: createMemoryEvent(input), persisted: "memory" };
 
   const event = buildEvent(input);
-  await db.collection<EventDocument>("events").insertOne(toEventDocument(event));
+  await assertMongoEventIdsAvailable(db, [event.id]);
+  try {
+    await db.collection<EventDocument>("events").insertOne(toEventDocument(event));
+  } catch (error) {
+    if (isDuplicateKeyError(error)) throw new PersistenceConflictError(`Event ${event.id} already exists.`);
+    throw error;
+  }
   await Promise.all([applyMongoEventStatsDeltas(db, [event]), recomputeMongoDangerSegments(db)]);
   return { value: event, persisted: "mongodb" };
 }
@@ -141,7 +153,15 @@ export async function createEvents(inputs: Partial<HazardEvent>[]): Promise<Pers
 
   const events = inputs.map(buildEvent);
   if (events.length) {
-    await db.collection<EventDocument>("events").insertMany(events.map(toEventDocument));
+    const eventIds = events.map((event) => event.id);
+    assertUniqueIds(eventIds, "event");
+    await assertMongoEventIdsAvailable(db, eventIds);
+    try {
+      await db.collection<EventDocument>("events").insertMany(events.map(toEventDocument));
+    } catch (error) {
+      if (isDuplicateKeyError(error)) throw new PersistenceConflictError("One or more event ids already exist.");
+      throw error;
+    }
     await Promise.all([applyMongoEventStatsDeltas(db, events), recomputeMongoDangerSegments(db)]);
   }
 
@@ -214,11 +234,12 @@ export async function resetDemoData() {
   const dangerSegments = cloneValue(demoDangerSegments);
 
   await Promise.all([
-    db.collection<Ride>("rides").replaceOne({ id: ride.id }, ride, { upsert: true }),
-    db.collection<EventDocument>("events").deleteMany({ rideId: ride.id }),
-    db.collection<DangerSegmentDocument>("danger_segments").deleteMany({ id: { $in: dangerSegments.map((segment) => segment.id) } }),
+    db.collection<Ride>("rides").deleteMany({}),
+    db.collection<EventDocument>("events").deleteMany({}),
+    db.collection<DangerSegmentDocument>("danger_segments").deleteMany({}),
   ]);
   await Promise.all([
+    db.collection<Ride>("rides").insertOne(ride),
     db.collection<EventDocument>("events").insertMany(events.map(toEventDocument)),
     db.collection<DangerSegmentDocument>("danger_segments").insertMany(dangerSegments.map(toDangerSegmentDocument)),
   ]);
@@ -294,6 +315,22 @@ async function replaceMongoDangerSegments(db: Db, dangerSegments: DangerSegment[
     })),
   );
   await db.collection<DangerSegmentDocument>("danger_segments").deleteMany({ id: { $nin: dangerSegments.map((segment) => segment.id) } });
+}
+
+async function assertMongoEventIdsAvailable(db: Db, eventIds: string[]) {
+  assertUniqueIds(eventIds, "event");
+  if (!eventIds.length) return;
+
+  const existingEvent = await db.collection<EventDocument>("events").findOne({ id: { $in: eventIds } }, { projection: { _id: 0, id: 1 } });
+  if (existingEvent) throw new PersistenceConflictError(`Event ${existingEvent.id} already exists.`);
+}
+
+function assertUniqueIds(ids: string[], label: string) {
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (seen.has(id)) throw new PersistenceConflictError(`Duplicate ${label} id ${id}.`);
+    seen.add(id);
+  }
 }
 
 const dangerSegmentEventProjection = {

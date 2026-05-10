@@ -15,7 +15,9 @@
     "demo:doctor": "node scripts/demo-doctor.mjs",
     "scenarios:generate": "node scripts/generate-road-scenarios.mjs",
     "mobile:start": "npm --prefix apps/mobile run start",
-    "mobile:typecheck": "npm --prefix apps/mobile run typecheck"
+    "mobile:typecheck": "npm --prefix apps/mobile run typecheck",
+    "sim": "npm --prefix apps/mobile run start -- --lan",
+    "expo": "npm exec --prefix apps/mobile -- expo"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",

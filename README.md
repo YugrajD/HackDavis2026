@@ -14,6 +14,7 @@ Guardian Road turns phones into road safety sensors. Bike/scooter phones warn ri
 - `docs/INTEGRATION_STATUS.md` — blockers and contract changes.
 - `docs/BACKEND_WIRED_RUNBOOK.md` — wired endpoints, env keys, judge demo runbook, reuse permission, and remaining work.
 - `docs/YOLO_MOBILE_RUNBOOK.md` — Next + YOLO sidecar + Expo handoff over LAN Wi-Fi.
+- `docs/SPONSOR_SETUP.md` — Atlas, Gemini, Anthropic, ElevenLabs, YOLO, and Expo token/setup checklist.
 
 ## Core loop
 
@@ -47,6 +48,27 @@ npm run demo:doctor
 ```
 
 The doctor seeds the demo and checks readiness, provider status, replay, events, and danger segments against `API_BASE_URL` (default `http://localhost:3000`). See `docs/BACKEND_WIRED_RUNBOOK.md` for the full endpoint matrix, env key list, and demo commands.
+
+## Expo mobile (Expo Go)
+
+The Expo app lives in **`apps/mobile`**. Do **not** run `npx expo start` from the **repo root** — there is no `expo` package there, so you will see “Cannot determine the project's Expo SDK version”.
+
+From repo root (uses the same `expo` as the mobile app):
+
+```bash
+npm run sim
+# or any expo subcommand, e.g.:
+npm run expo -- start --lan
+```
+
+Or change into the app folder:
+
+```bash
+cd apps/mobile
+npx expo start --lan
+```
+
+See `apps/mobile/README.md` and `docs/YOLO_MOBILE_RUNBOOK.md` for LAN IP / `EXPO_PUBLIC_API_BASE_URL` and the Next + YOLO sidecar.
 
 ## Track targets
 
