@@ -185,13 +185,14 @@ export default function CapturePage() {
   async function captureAndIngest() {
     if (!videoRef.current || !canvasRef.current) return;
 
+    const hasActiveRide = Boolean(activeRideId);
     const captureRideId = resolveRideId(activeRideId, rideId);
     const selectedCamera = camera;
     const captureT = Math.round((Date.now() - startedAtRef.current) / 1000);
     const routePoint = buildRoutePoint({ t: captureT, location, speedMps, headingDeg });
 
     setStatus("capturing");
-    setMessage(`Analyzing frame, saving event, and appending route point to ${captureRideId}.`);
+    setMessage(hasActiveRide ? `Analyzing frame, saving event, and appending route point to ${captureRideId}.` : `Analyzing frame and saving demo evidence to ${captureRideId}. Start a live ride to append route points.`);
 
     try {
       const imageBase64 = captureFrame(videoRef.current, canvasRef.current);
@@ -217,8 +218,10 @@ export default function CapturePage() {
         thumbnailUrl: mediaUpload.thumbnailUrl,
         perception,
       });
-      await postJson<AppendRideRouteResponse>(`/api/rides/${captureRideId}/route`, { point: routePoint });
-      setRoutePointCount((count) => count + 1);
+      if (hasActiveRide) {
+        await postJson<AppendRideRouteResponse>(`/api/rides/${captureRideId}/route`, { point: routePoint });
+        setRoutePointCount((count) => count + 1);
+      }
 
       const frameAnalysis: AnalysisResponse = { ...saved.event, provider: saved.provider, perception: saved.perception };
       setAnalysis(frameAnalysis);

@@ -12,6 +12,8 @@
     "smoke:report": "node scripts/smoke-report-export.mjs",
     "smoke:yolo": "node scripts/smoke-yolo-detect.mjs",
     "smoke:mobile": "node scripts/smoke-mobile-capture.mjs",
+    "smoke:pages": "node scripts/smoke-pages.mjs",
+    "smoke:mobile-config": "node scripts/smoke-mobile-config.mjs",
     "demo:doctor": "node scripts/demo-doctor.mjs",
     "scenarios:generate": "node scripts/generate-road-scenarios.mjs",
     "mobile:start": "npm --prefix apps/mobile run start",

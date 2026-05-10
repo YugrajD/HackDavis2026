@@ -234,9 +234,9 @@ export async function resetDemoData() {
   const dangerSegments = cloneValue(demoDangerSegments);
 
   await Promise.all([
-    db.collection<Ride>("rides").deleteMany({}),
-    db.collection<EventDocument>("events").deleteMany({}),
-    db.collection<DangerSegmentDocument>("danger_segments").deleteMany({}),
+    db.collection<Ride>("rides").deleteMany({ id: demoRide.id }),
+    db.collection<EventDocument>("events").deleteMany({ rideId: demoRide.id }),
+    db.collection<DangerSegmentDocument>("danger_segments").deleteMany({ id: { $in: demoDangerSegments.map((segment) => segment.id) } }),
   ]);
   await Promise.all([
     db.collection<Ride>("rides").insertOne(ride),

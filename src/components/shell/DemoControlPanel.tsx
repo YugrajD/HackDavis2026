@@ -22,16 +22,16 @@ export function DemoControlPanel() {
     try {
       const res = await fetch("/api/providers/status", { cache: "no-store" });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setProviders({ state: "error", message: `http ${res.status}`, detail: typeof json.error === "string" ? json.error : undefined });
+      const detail = summariseProviders(json);
+      const status = typeof json?.status === "string" ? json.status : res.ok ? "ready" : "degraded";
+      if (!res.ok && status !== "degraded") {
+        setProviders({ state: "error", message: `http ${res.status}`, detail: typeof json.error === "string" ? json.error : detail });
         return;
       }
-      const detail = summariseProviders(json);
-      const degraded = detail.degraded.length > 0;
       setProviders({
-        state: degraded ? "warn" : "ok",
-        message: degraded ? `${detail.degraded.length} degraded` : "all providers ready",
-        detail: detail.summary,
+        state: status === "ready" ? "ok" : "warn",
+        message: status === "ready" ? "providers ready" : "fallbacks active",
+        detail,
       });
     } catch (error) {
       setProviders({ state: "error", message: errorMessage(error) });
@@ -43,15 +43,16 @@ export function DemoControlPanel() {
     try {
       const res = await fetch("/api/health/readiness", { cache: "no-store" });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
+      const status = typeof json?.status === "string" ? json.status : res.ok ? "ready" : "degraded";
+      if (!res.ok && status !== "degraded") {
         setReadiness({ state: "error", message: `http ${res.status}`, detail: typeof json.error === "string" ? json.error : undefined });
         return;
       }
-      const ready = json?.ready === true || json?.status === "ready";
+      const ready = json?.ready === true || status === "ready";
       setReadiness({
         state: ready ? "ok" : "warn",
-        message: ready ? "ready" : "not ready",
-        detail: typeof json?.detail === "string" ? json.detail : JSON.stringify(json).slice(0, 160),
+        message: ready ? "ready" : "degraded",
+        detail: typeof json?.detail === "string" ? json.detail : JSON.stringify(json).slice(0, 180),
       });
     } catch (error) {
       setReadiness({ state: "error", message: errorMessage(error) });
@@ -70,7 +71,7 @@ export function DemoControlPanel() {
       setSeed({
         state: "ok",
         message: "seeded",
-        detail: typeof json?.message === "string" ? json.message : `events ${json?.events ?? "?"} · segments ${json?.segments ?? "?"}`,
+        detail: typeof json?.message === "string" ? json.message : `ride ${json?.rideId ?? "demo"} · events ${json?.eventCount ?? json?.events ?? "?"} · segments ${json?.segmentCount ?? json?.segments ?? "?"}`,
       });
     } catch (error) {
       setSeed({ state: "error", message: errorMessage(error) });
@@ -132,20 +133,22 @@ function errorMessage(error: unknown) {
   return "request failed";
 }
 
-function summariseProviders(payload: unknown): { degraded: string[]; summary: string } {
-  if (!payload || typeof payload !== "object") return { degraded: [], summary: "" };
+function summariseProviders(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "";
   const obj = payload as Record<string, unknown>;
   const providersField = (obj.providers ?? obj) as Record<string, unknown>;
-  const degraded: string[] = [];
   const lines: string[] = [];
 
   for (const [name, raw] of Object.entries(providersField)) {
     if (!raw || typeof raw !== "object") continue;
     const item = raw as Record<string, unknown>;
-    const status = String(item.status ?? item.state ?? (item.ok ? "ready" : "unknown"));
-    if (status !== "ready" && status !== "ok" && status !== "configured") degraded.push(name);
+    const configured = item.configured === true;
+    const available = item.available === true;
+    const check = typeof item.check === "string" ? item.check : undefined;
+    const fallback = typeof item.fallback === "string" ? item.fallback : undefined;
+    const status = available ? "ready" : configured ? check ?? "configured" : fallback ? `fallback:${fallback}` : check ?? "not configured";
     lines.push(`${name}: ${status}`);
   }
 
-  return { degraded, summary: lines.join(" · ") };
+  return lines.join(" · ");
 }

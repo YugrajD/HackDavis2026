@@ -50,16 +50,16 @@ export default function Home() {
                 Open capture sensor
               </Link>
               <Link
-                href="/api/replay/demo-ride-1"
+                href="/records"
                 className="inline-flex min-h-[44px] items-center border border-line-strong px-5 py-2 font-mono text-xs uppercase tracking-[0.22em] text-roadText transition-colors duration-150 ease-out hover:border-amber/60 hover:text-amber"
               >
-                Replay API
+                Records console
               </Link>
               <Link
-                href="/api/events?rideId=demo-ride-1"
+                href="/replay/demo-ride-1"
                 className="inline-flex min-h-[44px] items-center border border-line-strong px-5 py-2 font-mono text-xs uppercase tracking-[0.22em] text-roadText transition-colors duration-150 ease-out hover:border-amber/60 hover:text-amber"
               >
-                Events API
+                Replay console
               </Link>
             </div>
           </div>
