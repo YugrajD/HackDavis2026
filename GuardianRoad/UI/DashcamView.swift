@@ -130,7 +130,7 @@ struct DashcamView: View {
     private var topBar: some View {
         HStack(spacing: 10) {
             Spacer()
-            recordingIndicator
+            galleryButton
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -203,7 +203,7 @@ struct DashcamView: View {
         HStack {
             Spacer()
             HStack(spacing: 28) {
-                galleryButton
+                recordingIndicator
                 navButton
                 saveButton
             }
