@@ -138,12 +138,4 @@ scripts/                   Demo doctor + scenario generator
 
 ## Acknowledgments
 
-Guardian Road stands on three previous hackathon projects whose owners granted reuse permission:
-
-- **[PathSense](https://github.com/akjadhav/hackthenorth-2024)** — HackTheNorth 2024. Perception ergonomics and the rolling-recorder pattern.
-- **[LureLore](https://github.com/danielh-hong/hackthenorth2024)** — HackTheNorth 2024. Gemini + Mongo media persistence and the hotspot map approach.
-- **[ShipSense](https://github.com/SohamGovande/treehacks-2023)** — TreeHacks 2023. Report export structure.
-
-Portions of the Gaussian splat viewer and scenario-generation pipeline are adapted from **[Mirage](https://github.com/kyan-yang/Mirage)** by Kyan Yang et al. (MIT).
-
 Davis is a bike town. Cyclists die in it anyway. We built this because we ride it.
