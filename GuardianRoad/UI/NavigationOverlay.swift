@@ -31,7 +31,7 @@ struct NavigationOverlay: View {
 
                 Spacer()
 
-                if case .active = nav.navState {
+                if case .active = nav.navState, !minimapExpanded {
                     compassArrow.transition(.scale.combined(with: .opacity))
                 }
 
