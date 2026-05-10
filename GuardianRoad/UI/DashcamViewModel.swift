@@ -56,12 +56,13 @@ final class DashcamViewModel: NSObject, ObservableObject {
     }
 
     func toggleSceneDepth() {
-        guard camera.hasDepthSensorForActiveCamera else {
-            showStatus("Depth unavailable on the main camera")
-            return
-        }
         isSceneDepthRequested.toggle()
-        showStatus(isSceneDepthRequested ? "Depth enabled on main camera" : "Depth paused")
+        if isSceneDepthRequested {
+            let name = camera.activeCamera == .back ? "LiDAR" : "Depth"
+            showStatus(camera.hasDepthSensorForActiveCamera ? "\(name) enabled on main camera" : "Trying \(name) on main camera…")
+        } else {
+            showStatus("Depth paused")
+        }
     }
 
     private let uploader = MediaUploadClient()

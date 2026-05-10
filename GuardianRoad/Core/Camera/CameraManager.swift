@@ -128,13 +128,13 @@ final class CameraManager: NSObject, ObservableObject {
         defer { session.commitConfiguration() }
 
         // ─── Back camera ───
-        guard let backDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+        guard let backDevice = Self.backCameraDevice(requiringMultiCam: true),
               let backInput = try? AVCaptureDeviceInput(device: backDevice),
               session.canAddInput(backInput) else { return }
-        // Pick a multicam-compatible format up front — the device's default
-        // 1080p/30 may exceed the multicam cost budget and silently refuse to
-        // start, leaving both previews black.
-        Self.applyMultiCamFormat(to: backDevice)
+        // Pick a multicam-compatible format up front. Prefer a depth-capable
+        // format so the main preview can emit LiDAR/depth data without a
+        // second ARKit camera session.
+        Self.applyCaptureFormat(to: backDevice, requiringMultiCam: true, preferDepth: true)
         session.addInputWithNoConnections(backInput)
 
         backOutput.setSampleBufferDelegate(self, queue: outputQueue)
@@ -158,10 +158,10 @@ final class CameraManager: NSObject, ObservableObject {
         if session.canAddConnection(backPreviewConn) { session.addConnection(backPreviewConn) }
 
         // ─── Front camera ───
-        if let frontDevice = Self.frontCameraDevice(),
+        if let frontDevice = Self.frontCameraDevice(requiringMultiCam: true),
            let frontInput = try? AVCaptureDeviceInput(device: frontDevice),
            session.canAddInput(frontInput) {
-            Self.applyMultiCamFormat(to: frontDevice)
+            Self.applyCaptureFormat(to: frontDevice, requiringMultiCam: true, preferDepth: true)
             session.addInputWithNoConnections(frontInput)
 
             frontOutput.setSampleBufferDelegate(self, queue: outputQueue)
@@ -246,21 +246,68 @@ final class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    private static func frontCameraDevice() -> AVCaptureDevice? {
-        AVCaptureDevice.default(.builtInTrueDepthCamera, for: .video, position: .front)
-            ?? AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front)
+    private static func backCameraDevice(requiringMultiCam: Bool) -> AVCaptureDevice? {
+        preferredCameraDevice(
+            types: [.builtInLiDARDepthCamera, .builtInDualWideCamera, .builtInDualCamera, .builtInTripleCamera, .builtInWideAngleCamera],
+            position: .back,
+            requiringMultiCam: requiringMultiCam
+        )
     }
 
-    /// Pick a multicam-supported format for `device`, preferring 720p (cheap,
-    /// fits the multicam cost budget on every supported device) and falling
-    /// back to the smallest multicam-supported format otherwise.
-    private static func applyMultiCamFormat(to device: AVCaptureDevice) {
-        let multiCamFormats = device.formats.filter { $0.isMultiCamSupported }
-        guard !multiCamFormats.isEmpty else { return }
-        let preferred = multiCamFormats.first(where: { format in
+    private static func frontCameraDevice(requiringMultiCam: Bool) -> AVCaptureDevice? {
+        preferredCameraDevice(
+            types: [.builtInTrueDepthCamera, .builtInWideAngleCamera],
+            position: .front,
+            requiringMultiCam: requiringMultiCam
+        )
+    }
+
+    private static func preferredCameraDevice(
+        types: [AVCaptureDevice.DeviceType],
+        position: AVCaptureDevice.Position,
+        requiringMultiCam: Bool
+    ) -> AVCaptureDevice? {
+        let devices = AVCaptureDevice.DiscoverySession(
+            deviceTypes: types,
+            mediaType: .video,
+            position: position
+        ).devices
+
+        func isUsable(_ device: AVCaptureDevice) -> Bool {
+            !requiringMultiCam || device.formats.contains { $0.isMultiCamSupported }
+        }
+
+        func supportsDepth(_ device: AVCaptureDevice) -> Bool {
+            device.formats.contains { format in
+                (!requiringMultiCam || format.isMultiCamSupported) && !format.supportedDepthDataFormats.isEmpty
+            }
+        }
+
+        for type in types {
+            if let device = devices.first(where: { $0.deviceType == type && isUsable($0) && supportsDepth($0) }) {
+                return device
+            }
+        }
+        for type in types {
+            if let device = devices.first(where: { $0.deviceType == type && isUsable($0) }) {
+                return device
+            }
+        }
+        return devices.first(where: isUsable)
+    }
+
+    /// Pick a capture format for `device`. In multicam we still prefer a cheap
+    /// 720p stream, but depth-capable formats win so the HUD can read distance
+    /// from the same camera shown in the main preview.
+    private static func applyCaptureFormat(to device: AVCaptureDevice, requiringMultiCam: Bool, preferDepth: Bool) {
+        let usableFormats = device.formats.filter { !requiringMultiCam || $0.isMultiCamSupported }
+        guard !usableFormats.isEmpty else { return }
+        let depthFormats = usableFormats.filter { !$0.supportedDepthDataFormats.isEmpty }
+        let candidates = preferDepth && !depthFormats.isEmpty ? depthFormats : usableFormats
+        let preferred = candidates.first(where: { format in
             let dim = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
             return dim.width == 1280 && dim.height == 720
-        }) ?? multiCamFormats.min(by: { lhs, rhs in
+        }) ?? candidates.min(by: { lhs, rhs in
             let l = CMVideoFormatDescriptionGetDimensions(lhs.formatDescription)
             let r = CMVideoFormatDescriptionGetDimensions(rhs.formatDescription)
             return Int64(l.width) * Int64(l.height) < Int64(r.width) * Int64(r.height)
@@ -294,12 +341,13 @@ final class CameraManager: NSObject, ObservableObject {
         session.beginConfiguration()
         session.sessionPreset = .hd1920x1080
 
-        guard let backDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+        guard let backDevice = Self.backCameraDevice(requiringMultiCam: false),
               let backInput = try? AVCaptureDeviceInput(device: backDevice),
               session.canAddInput(backInput) else {
             session.commitConfiguration()
             return
         }
+        Self.applyCaptureFormat(to: backDevice, requiringMultiCam: false, preferDepth: true)
         session.addInput(backInput)
 
         if let audioDevice = AVCaptureDevice.default(for: .audio),
