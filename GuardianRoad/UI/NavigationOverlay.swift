@@ -18,6 +18,7 @@ struct NavigationOverlay: View {
                 switch nav.navState {
                 case .active:
                     maneuverCard.transition(.move(edge: .top).combined(with: .opacity))
+                        .frame(maxWidth: .infinity, alignment: .center)
                 case .arrived:
                     arrivedCard.transition(.move(edge: .top).combined(with: .opacity))
                 case .failed(let msg):
@@ -69,29 +70,28 @@ struct NavigationOverlay: View {
     // MARK: - Maneuver card (top)
 
     private var maneuverCard: some View {
-        HStack(spacing: 14) {
-            // Maneuver-specific SF Symbol — no rotation, icon shape conveys direction
+        HStack(spacing: 12) {
             Image(systemName: maneuverIcon(for: nav.currentStep?.instructions ?? ""))
-                .font(.system(size: 26, weight: .bold))
+                .font(.system(size: 22, weight: .bold))
                 .foregroundStyle(.white)
-                .frame(width: 36, height: 36)
+                .frame(width: 30, height: 30)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text(distanceLabel(nav.distanceToStep))
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                 Text(nav.currentStep?.instructions ?? "Continue")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white.opacity(0.85))
-                    .lineLimit(2)
+                    .lineLimit(1)
             }
-            Spacer()
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
         .background(.black.opacity(0.72), in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.12), lineWidth: 1))
-        .padding(.horizontal, 12)
+        .frame(maxWidth: 260)
+        .padding(.top, 8)
     }
 
     // MARK: - Compass arrow (center)
@@ -169,9 +169,11 @@ struct NavigationOverlay: View {
     }
 
     private func distanceLabel(_ meters: CLLocationDistance) -> String {
-        if meters < 100  { return "\(Int(meters)) m" }
-        if meters < 1000 { return "\(Int((meters / 10).rounded()) * 10) m" }
-        return String(format: "%.1f km", meters / 1000)
+        let feet = meters * 3.28084
+        if feet < 1000 { return "\(Int((feet / 10).rounded()) * 10) ft" }
+        let miles = meters / 1609.34
+        if miles < 10  { return String(format: "%.1f mi", miles) }
+        return "\(Int(miles.rounded())) mi"
     }
 
     private var cardID: String {
