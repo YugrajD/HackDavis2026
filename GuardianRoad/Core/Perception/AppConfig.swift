@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// Public ngrok tunnel into the friend's PC running Next.js + YOLO sidecar.
@@ -11,6 +12,13 @@ enum AppConfig {
     /// Minimum delay between perception requests, in milliseconds.
     /// Throttles the loop so we don't flood Wi-Fi or the YOLO service.
     static let perceptionMinIntervalMs: Int = 250
+
+    /// Optional LiDAR/ARKit scene depth fusion. It samples a small central ROI and only
+    /// boosts local HUD risk; it does not replace the existing camera or YOLO path.
+    static let sceneDepthEnabled = true
+    static let sceneDepthMaxAgeSec: TimeInterval = 0.85
+    static let sceneDepthNearMeters: Double = 2.4
+    static let sceneDepthLowLightLux: Double = 180
 
     /// HUD score thresholds (mirrors the Expo client tuning).
     static let autoPersistMinScore: Int = 56

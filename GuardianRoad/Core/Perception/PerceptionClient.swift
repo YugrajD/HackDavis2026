@@ -59,7 +59,7 @@ struct PerceptionClient {
             "lng": longitude,
             "speedMps": speedMps,
             "headingDeg": headingDeg,
-            "camera": "back",
+            "camera": "rear",
             "useYolo": true
         ]
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)

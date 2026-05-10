@@ -130,10 +130,41 @@ struct DashcamView: View {
     private var topBar: some View {
         HStack(spacing: 10) {
             Spacer()
+            depthModeButton
             recordingIndicator
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+    }
+
+    private var depthModeButton: some View {
+        Button {
+            vm.toggleSceneDepth()
+        } label: {
+            Text(depthModeLabel)
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundStyle(depthModeColor)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.black.opacity(0.38), in: Capsule())
+                .overlay(Capsule().stroke(depthModeColor.opacity(0.55), lineWidth: 1))
+        }
+        .disabled(!vm.sceneDepth.isSupported)
+        .opacity(vm.sceneDepth.isSupported ? 1 : 0.55)
+    }
+
+    private var depthModeLabel: String {
+        if !vm.sceneDepth.isSupported { return "LiDAR n/a" }
+        if let signal = vm.sceneDepth.latestFreshSignal, vm.isSceneDepthRequested {
+            return "LiDAR \(signal.displayDistance)"
+        }
+        return vm.isSceneDepthRequested ? "LiDAR on" : "LiDAR off"
+    }
+
+    private var depthModeColor: Color {
+        if !vm.sceneDepth.isSupported { return .white.opacity(0.45) }
+        if let signal = vm.sceneDepth.latestFreshSignal, signal.isLowLight { return .yellow }
+        return vm.isSceneDepthRequested ? .yellow : Color(red: 0.65, green: 0.95, blue: 1.0)
     }
 
     @ViewBuilder

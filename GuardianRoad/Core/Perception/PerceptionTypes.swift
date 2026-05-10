@@ -37,3 +37,29 @@ struct PerceptionResponse: Decodable {
     let height: Int?
     let note: String?
 }
+
+/// Lightweight LiDAR depth summary derived from ARKit scene depth.
+/// Distances are meters from the rear camera plane over the central road-facing ROI.
+struct SceneDepthSignal: Equatable {
+    let timestamp: Date
+    let centerMinMeters: Double
+    let centerP10Meters: Double
+    let nearPixelRatio: Double
+    let ambientIntensity: Double?
+    let isLowLight: Bool
+
+    func isFresh(maxAgeSec: TimeInterval) -> Bool {
+        Date().timeIntervalSince(timestamp) <= maxAgeSec
+    }
+
+    var displayDistance: String {
+        String(format: "%.1fm", centerP10Meters)
+    }
+
+    var statusText: String {
+        if isLowLight {
+            return "DEPTH low light · \(displayDistance)"
+        }
+        return "DEPTH \(displayDistance)"
+    }
+}
