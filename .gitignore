@@ -26,7 +26,7 @@ pnpm-debug.log*
 # TypeScript
 *.tsbuildinfo
 
-# Xcode / native iOS (GuardianRoad)
+# Xcode (Expo prebuild ios/ or local tooling)
 **/xcuserdata/
 *.xcuserstate
 
