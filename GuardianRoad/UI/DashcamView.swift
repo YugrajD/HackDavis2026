@@ -149,20 +149,20 @@ struct DashcamView: View {
                 .background(.black.opacity(0.38), in: Capsule())
                 .overlay(Capsule().stroke(depthModeColor.opacity(0.55), lineWidth: 1))
         }
-        .disabled(!vm.camera.hasBackDepthSensor)
-        .opacity(vm.camera.hasBackDepthSensor ? 1 : 0.55)
+        .disabled(!vm.camera.hasDepthSensorForActiveCamera)
+        .opacity(vm.camera.hasDepthSensorForActiveCamera ? 1 : 0.55)
     }
 
     private var depthModeLabel: String {
-        if !vm.camera.hasBackDepthSensor { return "LiDAR n/a" }
+        if !vm.camera.hasDepthSensorForActiveCamera { return "Depth n/a" }
         if let signal = vm.camera.latestDepthSignal, signal.isFresh(maxAgeSec: AppConfig.sceneDepthMaxAgeSec), vm.isSceneDepthRequested {
-            return "LiDAR \(signal.displayDistance)"
+            return "Depth \(signal.displayDistance)"
         }
-        return vm.isSceneDepthRequested ? "LiDAR on" : "LiDAR off"
+        return vm.isSceneDepthRequested ? "Depth on" : "Depth off"
     }
 
     private var depthModeColor: Color {
-        if !vm.camera.hasBackDepthSensor { return .white.opacity(0.45) }
+        if !vm.camera.hasDepthSensorForActiveCamera { return .white.opacity(0.45) }
         if let signal = vm.camera.latestDepthSignal, signal.isLowLight { return .yellow }
         return vm.isSceneDepthRequested ? .yellow : Color(red: 0.65, green: 0.95, blue: 1.0)
     }

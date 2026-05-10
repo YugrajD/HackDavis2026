@@ -56,16 +56,12 @@ final class DashcamViewModel: NSObject, ObservableObject {
     }
 
     func toggleSceneDepth() {
-        guard camera.hasBackDepthSensor else {
-            showStatus("LiDAR depth unavailable on this iPhone")
-            return
-        }
-        if camera.activeCamera != .back {
-            showStatus("LiDAR depth uses the main rear camera")
+        guard camera.hasDepthSensorForActiveCamera else {
+            showStatus("Depth unavailable on the main camera")
             return
         }
         isSceneDepthRequested.toggle()
-        showStatus(isSceneDepthRequested ? "LiDAR depth enabled on main camera" : "LiDAR depth paused")
+        showStatus(isSceneDepthRequested ? "Depth enabled on main camera" : "Depth paused")
     }
 
     private let uploader = MediaUploadClient()

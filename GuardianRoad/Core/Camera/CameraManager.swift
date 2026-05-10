@@ -15,14 +15,20 @@ final class CameraManager: NSObject, ObservableObject {
     @Published var permissionDenied = false
     @Published var hasFrontCamera = false
     @Published var hasBackDepthSensor = false
+    @Published var hasFrontDepthSensor = false
     @Published private(set) var latestDepthSignal: SceneDepthSignal?
     @Published var activeCamera: AVCaptureDevice.Position = .back
+
+    var hasDepthSensorForActiveCamera: Bool {
+        activeCamera == .back ? hasBackDepthSensor : hasFrontDepthSensor
+    }
 
     private let sessionQueue = DispatchQueue(label: "camera.session", qos: .userInteractive)
     private let outputQueue = DispatchQueue(label: "camera.output", qos: .userInteractive)
     private let backOutput = AVCaptureVideoDataOutput()
     private let frontOutput = AVCaptureVideoDataOutput()
     private let backDepthOutput = AVCaptureDepthDataOutput()
+    private let frontDepthOutput = AVCaptureDepthDataOutput()
     private let audioOutput = AVCaptureAudioDataOutput()
 
     private let frameSubject = PassthroughSubject<CMSampleBuffer, Never>()
@@ -92,7 +98,10 @@ final class CameraManager: NSObject, ObservableObject {
 
     /// Switch which camera's frames are sent to the perception loop and recorder.
     func setActiveCamera(_ position: AVCaptureDevice.Position) {
-        DispatchQueue.main.async { self.activeCamera = position }
+        DispatchQueue.main.async {
+            self.activeCamera = position
+            self.latestDepthSignal = nil
+        }
     }
 
     // MARK: - Setup
@@ -139,13 +148,17 @@ final class CameraManager: NSObject, ObservableObject {
         let backOutConn = AVCaptureConnection(inputPorts: [backVideoPort], output: backOutput)
         if session.canAddConnection(backOutConn) { session.addConnection(backOutConn) }
 
-        configureDepthOutputIfAvailable(session: session, input: backInput, device: backDevice)
+        configureDepthOutputIfAvailable(session: session,
+                                        input: backInput,
+                                        device: backDevice,
+                                        output: backDepthOutput,
+                                        position: .back)
 
         let backPreviewConn = AVCaptureConnection(inputPort: backVideoPort, videoPreviewLayer: backPreviewLayer)
         if session.canAddConnection(backPreviewConn) { session.addConnection(backPreviewConn) }
 
         // ─── Front camera ───
-        if let frontDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front),
+        if let frontDevice = Self.frontCameraDevice(),
            let frontInput = try? AVCaptureDeviceInput(device: frontDevice),
            session.canAddInput(frontInput) {
             Self.applyMultiCamFormat(to: frontDevice)
@@ -161,6 +174,12 @@ final class CameraManager: NSObject, ObservableObject {
                                                          sourceDevicePosition: .front).first {
                     let frontOutConn = AVCaptureConnection(inputPorts: [frontVideoPort], output: frontOutput)
                     if session.canAddConnection(frontOutConn) { session.addConnection(frontOutConn) }
+
+                    configureDepthOutputIfAvailable(session: session,
+                                                    input: frontInput,
+                                                    device: frontDevice,
+                                                    output: frontDepthOutput,
+                                                    position: .front)
 
                     let frontPreviewConn = AVCaptureConnection(inputPort: frontVideoPort,
                                                                 videoPreviewLayer: frontPreviewLayer)
@@ -189,29 +208,47 @@ final class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    private func configureDepthOutputIfAvailable(session: AVCaptureSession, input: AVCaptureDeviceInput, device: AVCaptureDevice) {
+    private func configureDepthOutputIfAvailable(
+        session: AVCaptureSession,
+        input: AVCaptureDeviceInput,
+        device: AVCaptureDevice,
+        output: AVCaptureDepthDataOutput,
+        position: AVCaptureDevice.Position
+    ) {
         guard AppConfig.sceneDepthEnabled else { return }
         guard !device.activeFormat.supportedDepthDataFormats.isEmpty else { return }
         Self.applyDepthFormat(to: device)
 
-        backDepthOutput.setDelegate(self, callbackQueue: outputQueue)
-        backDepthOutput.isFilteringEnabled = true
+        output.setDelegate(self, callbackQueue: outputQueue)
+        output.isFilteringEnabled = true
 
         if let multi = session as? AVCaptureMultiCamSession {
-            guard session.canAddOutput(backDepthOutput) else { return }
-            session.addOutputWithNoConnections(backDepthOutput)
+            guard session.canAddOutput(output) else { return }
+            session.addOutputWithNoConnections(output)
             guard let depthPort = input.ports(for: .depthData,
                                               sourceDeviceType: device.deviceType,
-                                              sourceDevicePosition: .back).first else { return }
-            let depthConn = AVCaptureConnection(inputPorts: [depthPort], output: backDepthOutput)
+                                              sourceDevicePosition: position).first else { return }
+            let depthConn = AVCaptureConnection(inputPorts: [depthPort], output: output)
             if multi.canAddConnection(depthConn) {
                 multi.addConnection(depthConn)
-                DispatchQueue.main.async { self.hasBackDepthSensor = true }
+                setDepthSensorAvailable(for: position)
             }
-        } else if session.canAddOutput(backDepthOutput) {
-            session.addOutput(backDepthOutput)
-            DispatchQueue.main.async { self.hasBackDepthSensor = true }
+        } else if session.canAddOutput(output) {
+            session.addOutput(output)
+            setDepthSensorAvailable(for: position)
         }
+    }
+
+    private func setDepthSensorAvailable(for position: AVCaptureDevice.Position) {
+        DispatchQueue.main.async {
+            if position == .back { self.hasBackDepthSensor = true }
+            if position == .front { self.hasFrontDepthSensor = true }
+        }
+    }
+
+    private static func frontCameraDevice() -> AVCaptureDevice? {
+        AVCaptureDevice.default(.builtInTrueDepthCamera, for: .video, position: .front)
+            ?? AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front)
     }
 
     /// Pick a multicam-supported format for `device`, preferring 720p (cheap,
@@ -274,7 +311,11 @@ final class CameraManager: NSObject, ObservableObject {
         backOutput.setSampleBufferDelegate(self, queue: outputQueue)
         backOutput.alwaysDiscardsLateVideoFrames = true
         if session.canAddOutput(backOutput) { session.addOutput(backOutput) }
-        configureDepthOutputIfAvailable(session: session, input: backInput, device: backDevice)
+        configureDepthOutputIfAvailable(session: session,
+                                        input: backInput,
+                                        device: backDevice,
+                                        output: backDepthOutput,
+                                        position: .back)
 
         audioOutput.setSampleBufferDelegate(self, queue: outputQueue)
         if session.canAddOutput(audioOutput) { session.addOutput(audioOutput) }
@@ -307,8 +348,9 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate, AVCapture
             ? depthData
             : depthData.converting(toDepthDataType: kCVPixelFormatType_DepthFloat32)
         guard let signal = SceneDepthSignal.make(from: converted.depthDataMap) else { return }
+        let outputPosition: AVCaptureDevice.Position = output === frontDepthOutput ? .front : .back
         DispatchQueue.main.async { [weak self] in
-            guard let self, self.activeCamera == .back else { return }
+            guard let self, self.activeCamera == outputPosition else { return }
             self.latestDepthSignal = signal
         }
     }
