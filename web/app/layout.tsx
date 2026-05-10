@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Semicolon",
+  title: "Guardian Road",
   description:
-    "Semicolon turns your iPhone into an AI dashcam with LiDAR depth sensing and on-device incident review.",
+    "Guardian Road is a phone-mounted hazard dashcam for cyclists, scooter riders, and drivers — real-time voice alerts, saved clips, and danger-zone analytics for the city.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

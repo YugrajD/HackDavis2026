@@ -11,33 +11,33 @@ type Feature = {
 
 const features: Feature[] = [
   {
-    tag: "01 / capture",
-    title: "An AI dashcam that lives in your pocket.",
-    body: "Tap once and your iPhone records a continuous loop in the background. Hard brakes, swerves, and impacts auto-flag the clip so the right thirty seconds stay safe.",
+    tag: "01 / detect",
+    title: "Hazards spotted before you can react.",
+    body: "Front and rear cameras run in parallel through a YOLOv8 perception loop with LiDAR scene-depth fusion. Close passes, doorings, blocked bike lanes, and pedestrian conflicts get flagged in real time.",
     bg: "bg-deep-forest",
     fg: "text-paper-white",
     swatch: "bg-harvest-gold",
   },
   {
-    tag: "02 / sense",
-    title: "LiDAR depth, on the live feed.",
-    body: "Pro iPhones overlay LiDAR depth onto the camera preview. Following distances, blind spots, and close calls become measurable instead of memorable.",
+    tag: "02 / alert",
+    title: "A voice you can actually hear over wind.",
+    body: "ElevenLabs speaks a short, tuned warning the moment a hazard crosses threshold. Say \"save clip\" and the rolling 60-second buffer is locked, uploaded, and added to your gallery.",
     bg: "bg-sage-mist",
     fg: "text-graphite",
     swatch: "bg-indigo-punch",
   },
   {
-    tag: "03 / review",
-    title: "On-device by default.",
-    body: "Footage stays on your phone until you decide otherwise. No silent cloud upload, no surprise data bills. Export the clips you want, when you want.",
+    tag: "03 / archive",
+    title: "Evidence with GPS, heading, and speed attached.",
+    body: "Every saved clip lands in MongoDB Atlas with a 2dsphere geo index, a thumbnail, and full telemetry. Replay any ride in 3D from the records console; export the report as a PDF.",
     bg: "bg-desert-rose",
     fg: "text-graphite",
     swatch: "bg-terracotta",
   },
   {
-    tag: "04 / built for",
-    title: "Daily commuters, rideshare drivers, and student drivers.",
-    body: "A quiet co-pilot for the people who actually share the road. Designed at UC Davis for HackDavis 2026.",
+    tag: "04 / aggregate",
+    title: "Repeated near-misses become a danger zone.",
+    body: "When the same corridor lights up across riders, the records console aggregates events into geofenced danger segments and Claude generates a corridor safety report city traffic engineers can actually use.",
     bg: "bg-paper-white",
     fg: "text-graphite",
     swatch: "bg-deep-forest",
@@ -53,7 +53,7 @@ export default function Page() {
           <a href="#" className="flex items-center gap-3">
             <span className="w-3 h-3 rounded-full bg-indigo-punch" />
             <span className="font-mono text-[13px] tracking-[-0.04em]">
-              semicolon / v0.1
+              guardian road / v0.1
             </span>
           </a>
           <div className="hidden md:flex items-center gap-8 text-[15px] tracking-[0.02em] font-light">
@@ -88,16 +88,17 @@ export default function Page() {
                 hackdavis · 2026
               </p>
               <h1 className="font-display text-[44px] sm:text-[64px] md:text-[88px] lg:text-[120px] leading-[0.94] tracking-[-0.03em]">
-                Drive safe,
+                Cyclists die.
                 <br />
-                document everything.
+                Cities don&apos;t hear about it.
               </h1>
             </div>
             <div className="col-span-12 lg:col-span-4">
               <p className="text-[16px] leading-[1.54] text-graphite/80 max-w-md">
-                Semicolon turns any iPhone into an AI dashcam with LiDAR depth
-                sensing and on-device incident review, so the next close call
-                has receipts.
+                Guardian Road is a phone-mounted hazard dashcam for bikes,
+                scooters, and cars. It detects close passes in real time,
+                speaks the alert, saves a clip, and gives the city the
+                heatmap to fix the street.
               </p>
               <div className="mt-8 flex items-center gap-3 flex-wrap">
                 <a
@@ -125,9 +126,9 @@ export default function Page() {
               </h2>
             </div>
             <p className="max-w-sm text-[16px] leading-[1.54] text-graphite/70">
-              Two clips recorded straight from an iPhone. The left shows the
-              app in motion, the right shows what the depth-aware feed looks
-              like behind the wheel.
+              Two clips straight from an iPhone. The left shows the app in
+              motion; the right shows the depth-aware feed mid-ride, with
+              the multicam preview and live YOLO overlay.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -156,13 +157,14 @@ export default function Page() {
                 / product
               </p>
               <h2 className="font-display text-[40px] md:text-[64px] leading-[0.94] tracking-[-0.03em] max-w-2xl">
-                A creative toolkit for the road.
+                One pipeline, three sensor classes.
               </h2>
             </div>
             <p className="max-w-sm text-[16px] leading-[1.54] text-graphite/70">
-              Four small features that add up to one calm, capable dashcam,
-              built for drivers who want clarity after the fact and confidence
-              in the moment.
+              Bike, scooter, or car — the same perception loop, voice layer,
+              and danger-segment store. Detection in the moment, evidence
+              after the fact, and aggregated insight for the people who set
+              the speed limits.
             </p>
           </div>
 
@@ -200,24 +202,24 @@ export default function Page() {
               / how it works
             </p>
             <h2 className="font-display text-[40px] md:text-[64px] leading-[0.94] tracking-[-0.03em] max-w-3xl">
-              Mount. Tap. Drive.
+              Mount. Ride. Replay.
             </h2>
             <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-10">
               {[
                 {
                   n: "01",
-                  t: "Mount your iPhone",
-                  b: "Any standard windshield or vent mount. Semicolon auto-prefers the rear LiDAR camera on Pro models.",
+                  t: "Mount and start a ride",
+                  b: "Bar-mount on a bike or scooter; vent-mount in a car. Pick a ride mode and the perception loop begins. Pro iPhones light up the LiDAR depth pill automatically.",
                 },
                 {
                   n: "02",
-                  t: "Tap to record",
-                  b: "A single tap starts a continuous loop. The depth pill in the corner shows when LiDAR is live.",
+                  t: "Hazards trigger themselves",
+                  b: "YOLO + Gemini score the scene. When severity crosses threshold the rolling 60-second clip is saved, ElevenLabs voices the alert, and the event lands in MongoDB Atlas. Or just say \"save clip.\"",
                 },
                 {
                   n: "03",
-                  t: "Review what mattered",
-                  b: "Auto-flagged clips surface at the top. Export them, share them, or delete them. Your call.",
+                  t: "Replay, report, repeat",
+                  b: "Open the records console for the 3D ride replay, the danger-zone heatmap, and the corridor safety report Claude writes for the city.",
                 },
               ].map((s) => (
                 <div key={s.n}>
@@ -240,7 +242,7 @@ export default function Page() {
       <footer className="border-t border-graphite/10 bg-canvas">
         <div className="max-w-[1280px] mx-auto px-6 md:px-10 py-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="font-mono text-[12px] tracking-[-0.04em] text-graphite/60">
-            © 2026 semicolon · built at uc davis · hackdavis 2026
+            © 2026 guardian road · built at uc davis · hackdavis 2026
           </div>
           <a
             href="https://github.com/YugrajD/HackDavis2026"

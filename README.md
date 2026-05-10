@@ -40,7 +40,7 @@ The Next.js server is the single source of truth. The iOS app and the web record
 - **Next.js web** (`src/app/`) — Backend APIs and dashboards. Records console, replay console, scenario lab, safety-report export.
 - **Python YOLO sidecar** (`services/yolo/`) — FastAPI server running YOLOv8 (`ultralytics`) for real-time perception. Falls back to the in-app COCO labels when offline.
 - **R3F replay** (`src/components/replay/`) — `@react-three/fiber` scene reconstructing the ride along the GPS curve, with actors, lane markings, hazard markers, and timeline scrubbing.
-- **Marketing site** (`web/`) — separate Next.js landing page (port 3001) for the consumer pitch under the working name **Semicolon**.
+- **Marketing site** (`web/`) — separate Next.js landing page (port 3001) telling the cyclist-safety story for non-judges.
 
 ## Sponsor integrations
 
@@ -128,7 +128,7 @@ src/                       Next.js judge dashboard + API
   lib/                     ai, db, perception, scenarios, contracts
 
 services/yolo/             Python YOLOv8 FastAPI sidecar
-web/                       Marketing landing page (Next.js, :3001)
+web/                       Marketing landing page (Next.js, :3001, cyclist-first pitch)
 scripts/                   demo:doctor + scenarios:generate
 ```
 
