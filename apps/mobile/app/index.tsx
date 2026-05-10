@@ -59,7 +59,6 @@ type PreviewSize = { w: number; h: number };
 
 const DEMO_RIDE_ID = "demo-ride-1";
 const DEMO_ORIGIN = { lat: 38.5449, lng: -121.7405 };
-const CAPTURE_IMAGE_QUALITY = 0.55;
 const LIVE_MONITOR_JPEG_QUALITY = 0.38;
 /** When the camera or network fails, wait briefly before retrying (live loop otherwise runs back-to-back). */
 const LIVE_MONITOR_ERROR_BACKOFF_MS = 120;
@@ -338,36 +337,6 @@ export default function CaptureScreen() {
     }
   }, [activeRide]);
 
-  const captureManual = useCallback(async () => {
-    const cam = cameraViewRef.current;
-    if (!cam) return;
-    setBusy(true);
-    setStatus("Capturing…");
-    setLast(null);
-
-    try {
-      setStatus("Checking backend…");
-      const backendReachable = await runPreflight();
-      if (!backendReachable) throw new Error("Backend is not reachable. Check API base URL and Wi‑Fi.");
-
-      const photo = await cam.takePictureAsync({
-        base64: true,
-        quality: CAPTURE_IMAGE_QUALITY,
-        shutterSound: false,
-        skipProcessing: false,
-      });
-
-      if (!photo?.base64) throw new Error("Camera did not return base64.");
-
-      const imageBase64 = `data:image/jpeg;base64,${photo.base64}`;
-      await persistPipelineFromImage(imageBase64, {});
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : "Capture failed");
-    } finally {
-      setBusy(false);
-    }
-  }, [persistPipelineFromImage, runPreflight]);
-
   const onCameraLayout = useCallback((e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
     if (width > 0 && height > 0) setPreviewSize({ w: width, h: height });
@@ -532,7 +501,7 @@ export default function CaptureScreen() {
       <View style={styles.monitorPanel}>
         <Text style={styles.preflightTitle}>Live perception</Text>
         <Text style={styles.monitorCaption}>
-          Always on while this screen is open: JPEG frames POST to /api/perception/detect; green boxes show YOLO classes. Pauses briefly during manual save. Round-trip depends on Wi‑Fi and laptop GPU. Full events still use analyze-and-save (manual or debounced auto).
+          Always on while this screen is open: JPEG frames POST to /api/perception/detect; green boxes show YOLO classes. High HUD score triggers debounced analyze-and-save + voice. Round-trip depends on Wi‑Fi and laptop GPU.
         </Text>
         <View style={styles.monitorStats}>
           <Text style={styles.monitorStatLine}>HUD score {liveHudScore}</Text>
@@ -573,10 +542,6 @@ export default function CaptureScreen() {
             })
           : null}
       </View>
-
-      <Pressable style={[styles.capture, busy && styles.captureDisabled]} onPress={() => void captureManual()} disabled={busy}>
-        {busy ? <ActivityIndicator color="#0a0a0b" /> : <Text style={styles.captureText}>Save hazard (manual)</Text>}
-      </Pressable>
 
       {status ? (
         <Text style={styles.status} selectable>
@@ -691,15 +656,6 @@ const styles = StyleSheet.create({
     color: "#052e16",
     backgroundColor: "rgba(74, 222, 128, 0.92)",
   },
-  capture: {
-    marginTop: 20,
-    backgroundColor: "#22d3ee",
-    paddingVertical: 14,
-    borderRadius: 999,
-    alignItems: "center",
-  },
-  captureDisabled: { opacity: 0.6 },
-  captureText: { fontWeight: "600", color: "#0a0a0b", fontSize: 16 },
   status: { marginTop: 16, color: "#cbd5e1", fontSize: 13 },
   card: {
     marginTop: 20,

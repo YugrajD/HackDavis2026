@@ -126,9 +126,8 @@ The mobile capture screen runs **continuous video preview** with **always-on** l
 
 - An **async loop** runs back-to-back: snapshot JPEG (**~0.38 quality**) → **`POST /api/perception/detect`** → update UI (no fixed seconds-between-frames delay; effective FPS is limited by camera encode, Wi‑Fi, and YOLO latency). The UI shows **last frame round-trip ms** as feedback.
 - Every returned detection is drawn with a **green** border and a small **label** chip (normalized `bbox` over the preview).
-- **Manual save** still uses **Save hazard (manual)** → upload + **`POST /api/media/analyze-and-save`** (same as before).
-- **Auto-save** runs only when a client **HUD score** from detections crosses a threshold **and** at least **~42 s** have passed since the last auto-save, so the laptop and Mongo/memory are not flooded.
+- **Auto-save** runs only when a client **HUD score** from detections crosses a threshold **and** at least **~42 s** have passed since the last auto-save, then upload + **`POST /api/media/analyze-and-save`** (so the laptop and Mongo/memory are not flooded).
 
-If `takePictureAsync` fails while the camera is in `video` mode on a device, try a dev build or fall back to manual capture; see [apps/mobile/README.md](apps/mobile/README.md).
+If `takePictureAsync` fails while the camera is in `video` mode on a device, try a dev build; see [apps/mobile/README.md](apps/mobile/README.md).
 
 **Speech hints** during monitor use **expo-speech** with a cooldown and do not replace the server voice path on saved events (`/api/voice/alert`).

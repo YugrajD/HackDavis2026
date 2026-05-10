@@ -47,15 +47,12 @@ Open in Expo Go or a dev build; grant **camera** (and **location** if you want r
 ## Flow
 
 1. `POST /api/rides` — start a live bike ride with the current GPS point. If this fails, the app keeps the demo fallback ride `demo-ride-1`.
-2. **Live perception (always on):** on the capture screen with camera permission, `CameraView` stays in **`video`** mode and a **continuous async loop** runs: snapshot JPEG (**~0.38 quality**) → **`POST /api/perception/detect`** → **green** overlays + labels (round-trip ms in the HUD). The loop **pauses briefly** while **Save hazard (manual)** runs to avoid overlapping `takePictureAsync`. High HUD score can still trigger a **debounced** full pipeline (same steps 3–6 as a single burst). Short **expo-speech** hints use a separate cooldown and are not a substitute for `/api/voice/alert` on saved events.
-3. **Manual save:** **Save hazard (manual)** captures at `quality: 0.55` with `skipProcessing: false`, then runs the pipeline below.
-4. `POST /api/media/upload` with `thumbnailBase64` — stores the compressed thumbnail URL.
-5. `POST /api/media/analyze-and-save` with the same compressed `imageBase64`, `rideId`, `t` relative to `ride.startedAt`, `useYolo: true`, and the uploaded `thumbnailUrl` — server runs YOLO + `analyzeFrameObservation`, then saves + optional Gemini copy.
-6. `POST /api/rides/:rideId/route` — append one route point for the saved event.
-7. `POST /api/voice/alert` — play MP3 or `expo-speech` fallback.
-8. `PATCH /api/rides/:rideId/end` — end the active ride and refresh stats (monitor stops when the ride ends).
+2. **Live perception (always on):** on the capture screen with camera permission, `CameraView` stays in **`video`** mode and a **continuous async loop** runs: snapshot JPEG (**~0.38 quality**) → **`POST /api/perception/detect`** → **green** overlays + labels (round-trip ms in the HUD). The loop **pauses briefly** while **Start ride** / **End ride** run (`busy`). Short **expo-speech** hints use a separate cooldown and are not a substitute for `/api/voice/alert` on saved events.
+3. **Auto-save (debounced):** when the client HUD score stays high, the app may run **`POST /api/media/upload`** then **`POST /api/media/analyze-and-save`** (same frame JPEG, `useYolo: true`), then route + voice — at most on the configured cooldown so the server is not flooded.
+4. `POST /api/rides/:rideId/route` — appended after a saved auto event.
+5. `PATCH /api/rides/:rideId/end` — end the active ride and refresh stats.
 
-If live snapshots while in `video` mode are unreliable on a device, use manual capture for the demo or consider a **development build** with a frame-processor library (not required for the default Wi‑Fi laptop path).
+If live snapshots while in `video` mode are unreliable on a device, consider a **development build** with a frame-processor library (not required for the default Wi‑Fi laptop path).
 
 ## Firewall
 
