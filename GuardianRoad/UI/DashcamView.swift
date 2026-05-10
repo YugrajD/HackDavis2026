@@ -52,16 +52,12 @@ struct DashcamView: View {
 
     private var topBar: some View {
         HStack(spacing: 10) {
-            Text("GUARDIAN ROAD")
-                .font(.system(size: 13, weight: .bold, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.85))
             Spacer()
             hudChip
             recordingIndicator
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(.black.opacity(0.5))
     }
 
     private var hudChip: some View {
@@ -147,16 +143,21 @@ struct DashcamView: View {
     }
 
     private var bottomBar: some View {
-        HStack(alignment: .center, spacing: 16) {
-            galleryButton
+        HStack {
             Spacer()
-            navButton
+            HStack(spacing: 28) {
+                galleryButton
+                navButton
+                saveButton
+            }
+            .padding(.horizontal, 22)
+            .padding(.vertical, 10)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 1))
+            .shadow(color: .black.opacity(0.35), radius: 10, x: 0, y: 4)
             Spacer()
-            saveButton
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(.black.opacity(0.6))
+        .padding(.bottom, 8)
     }
 
     private var galleryButton: some View {
@@ -208,16 +209,11 @@ struct DashcamView: View {
         Button {
             vm.triggerSave(reason: "manual")
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "square.and.arrow.down.fill")
-                Text("SAVE CLIP")
-                    .font(.system(size: 13, weight: .bold))
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(vm.recorder.isSaving ? Color.gray : Color.red)
-            .clipShape(Capsule())
+            Image(systemName: "square.and.arrow.down.fill")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 36, height: 36)
+                .background(vm.recorder.isSaving ? Color.gray : Color.red, in: Circle())
         }
         .disabled(vm.recorder.isSaving)
     }
