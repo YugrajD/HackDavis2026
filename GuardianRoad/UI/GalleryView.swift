@@ -1,6 +1,17 @@
 import SwiftUI
 import AVKit
 
+// MARK: - Stryds palette
+private extension Color {
+    static let neonGreen    = Color(red: 0.651, green: 1.000, blue: 0.000)   // #a6ff00
+    static let cardSurface  = Color(red: 0.090, green: 0.090, blue: 0.090)   // #171717
+    static let graphite     = Color(red: 0.239, green: 0.239, blue: 0.239)   // #3d3d3d
+    static let brightText   = Color(red: 0.992, green: 0.992, blue: 0.992)   // #fdfdfd
+    static let mutedAsh     = Color(red: 0.435, green: 0.435, blue: 0.435)   // #6f6f6f
+    static let deepSpace    = Color(red: 0.016, green: 0.004, blue: 0.149)   // #040126
+    static let componentDark = Color(red: 0.063, green: 0.063, blue: 0.063)  // #101010
+}
+
 struct GalleryView: View {
     @Environment(\.dismiss) private var dismiss
     private let client = EventsClient()
@@ -24,34 +35,39 @@ struct GalleryView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack {
-            Text("CLIP GALLERY")
-                .font(.system(size: 13, weight: .bold, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.85))
-                .tracking(2)
-            Spacer()
-            Button {
-                Task { await load() }
-            } label: {
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.cyan)
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("CLIP GALLERY")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(Color.brightText)
+                    .tracking(-0.8)
+                Text("\(clips.count) saved")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Color.mutedAsh)
             }
-            .padding(.trailing, 14)
-
-            Button("Close") { dismiss() }
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.cyan)
+            Spacer()
+            HStack(spacing: 10) {
+                Button {
+                    Task { await load() }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color.deepSpace)
+                        .padding(12)
+                        .background(Color.neonGreen, in: Circle())
+                }
+                Button("Done") { dismiss() }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.brightText)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .background(Color.componentDark, in: Capsule())
+                    .overlay(Capsule().stroke(Color.graphite, lineWidth: 1))
+            }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color.black)
-        .overlay(
-            Rectangle()
-                .fill(Color.white.opacity(0.08))
-                .frame(height: 1),
-            alignment: .bottom
-        )
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 16)
     }
 
     // MARK: - Content
@@ -59,102 +75,126 @@ struct GalleryView: View {
     @ViewBuilder
     private var content: some View {
         if loading {
-            VStack { Spacer(); ProgressView().tint(.cyan); Spacer() }
+            Spacer()
+            ProgressView()
+                .tint(Color.neonGreen)
+                .scaleEffect(1.4)
+            Spacer()
         } else if let errorMessage {
-            VStack(spacing: 8) {
-                Spacer()
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 32))
-                    .foregroundStyle(.yellow)
-                Text("Could not load clips")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                Text(errorMessage)
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.6))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-                Spacer()
-            }
+            emptyState(
+                icon: "exclamationmark.triangle.fill",
+                iconColor: .yellow,
+                title: "Could not load clips",
+                subtitle: errorMessage
+            )
         } else if clips.isEmpty {
-            VStack(spacing: 8) {
-                Spacer()
-                Image(systemName: "film.stack")
-                    .font(.system(size: 36))
-                    .foregroundStyle(.gray)
-                Text("No clips yet")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                Text("Hazard saves with a video clip will show up here.")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.6))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-                Spacer()
-            }
+            emptyState(
+                icon: "film.stack",
+                iconColor: Color.neonGreen,
+                title: "No clips yet",
+                subtitle: "Hazard saves with a video clip will appear here."
+            )
         } else {
             ScrollView {
-                LazyVStack(spacing: 18) {
+                LazyVStack(spacing: 16) {
                     ForEach(clips) { clip in
                         ClipCard(clip: clip, mediaURL: client.resolveMediaURL(clip.clipUrl ?? ""))
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 18)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
             }
         }
     }
 
-    // MARK: - Loading
+    @ViewBuilder
+    private func emptyState(icon: String, iconColor: Color, title: String, subtitle: String) -> some View {
+        Spacer()
+        VStack(spacing: 16) {
+            Image(systemName: icon)
+                .font(.system(size: 44, weight: .bold))
+                .foregroundStyle(iconColor)
+            Text(title)
+                .font(.system(size: 21, weight: .bold))
+                .foregroundStyle(Color.brightText)
+                .tracking(-0.57)
+            Text(subtitle)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Color.mutedAsh)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+        }
+        Spacer()
+    }
+
+    // MARK: - Load
 
     private func load() async {
-        await MainActor.run {
-            loading = true
-            errorMessage = nil
-        }
+        await MainActor.run { loading = true; errorMessage = nil }
         do {
             let all = try await client.listEvents()
-            let withClips = all.filter { ($0.clipUrl?.trimmingCharacters(in: CharacterSet.whitespaces).isEmpty == false) }
-            await MainActor.run {
-                self.clips = withClips
-                self.loading = false
-            }
+            let withClips = all.filter { ($0.clipUrl?.trimmingCharacters(in: .whitespaces).isEmpty == false) }
+            await MainActor.run { self.clips = withClips; self.loading = false }
         } catch {
-            await MainActor.run {
-                self.errorMessage = (error as NSError).localizedDescription
-                self.loading = false
-            }
+            await MainActor.run { self.errorMessage = (error as NSError).localizedDescription; self.loading = false }
         }
     }
 }
 
-// MARK: - Card
+// MARK: - Clip Card
 
 private struct ClipCard: View {
     let clip: HazardEventItem
     let mediaURL: URL?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 14) {
             videoLayer
-            Text(formattedTimestamp)
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.7))
-            Text("\(clip.type.replacingOccurrences(of: "_", with: " ")) · sev \(Int(clip.severity.rounded()))")
-                .font(.system(size: 12))
-                .foregroundStyle(.white.opacity(0.55))
-            if !clip.spokenAlert.isEmpty {
-                Text(clip.spokenAlert)
-                    .font(.system(size: 14))
-                    .foregroundStyle(.white)
-                    .lineLimit(3)
+
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    // Hazard type pill
+                    Text(clip.type.replacingOccurrences(of: "_", with: " ").uppercased())
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Color.deepSpace)
+                        .tracking(0.5)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5)
+                        .background(Color.neonGreen, in: Capsule())
+
+                    if !clip.spokenAlert.isEmpty {
+                        Text(clip.spokenAlert)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Color.brightText)
+                            .tracking(-0.3)
+                            .lineLimit(2)
+                    }
+
+                    Text(formattedTimestamp)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color.mutedAsh)
+                }
+
+                Spacer()
+
+                // Severity badge
+                VStack(spacing: 2) {
+                    Text("\(Int(clip.severity.rounded()))")
+                        .font(.system(size: 36, weight: .bold))
+                        .foregroundStyle(severityColor)
+                        .tracking(-1)
+                    Text("RISK")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Color.mutedAsh)
+                        .tracking(1)
+                }
             }
         }
-        .padding(14)
-        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 16))
+        .padding(18)
+        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: 40))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 40)
+                .stroke(Color.graphite, lineWidth: 1)
         )
     }
 
@@ -163,17 +203,29 @@ private struct ClipCard: View {
         if let mediaURL {
             VideoPlayer(player: AVPlayer(url: mediaURL))
                 .aspectRatio(16 / 9, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: 24))
         } else {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.black)
+            RoundedRectangle(cornerRadius: 24)
+                .fill(Color.componentDark)
                 .aspectRatio(16 / 9, contentMode: .fit)
                 .overlay(
-                    Text("No clip URL")
-                        .font(.caption)
-                        .foregroundStyle(.gray)
+                    VStack(spacing: 8) {
+                        Image(systemName: "video.slash.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(Color.mutedAsh)
+                        Text("No clip recorded")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Color.mutedAsh)
+                    }
                 )
         }
+    }
+
+    private var severityColor: Color {
+        let s = clip.severity
+        if s >= 85 { return Color(red: 1.0, green: 0.31, blue: 0.27) }
+        if s >= 70 { return Color(red: 1.0, green: 0.70, blue: 0.22) }
+        return Color.neonGreen
     }
 
     private var formattedTimestamp: String {
