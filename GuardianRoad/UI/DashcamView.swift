@@ -40,8 +40,10 @@ struct DashcamView: View {
                     .onChange(of: geo.size) { _, newSize in previewSize = newSize }
                 }
                 .ignoresSafeArea()
-                overlay
                 NavigationOverlay(nav: vm.navigation)
+                    .zIndex(5)
+                overlay
+                    .zIndex(10)
             }
         }
         .onAppear { vm.start() }
@@ -128,8 +130,11 @@ struct DashcamView: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: 10) {
-            recordingIndicator
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
+                depthModeButton
+                recordingIndicator
+            }
             Spacer()
         }
         .padding(.horizontal, 16)
@@ -141,28 +146,35 @@ struct DashcamView: View {
             vm.toggleSceneDepth()
         } label: {
             Text(depthModeLabel)
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .font(.system(size: 12, weight: .bold, design: .monospaced))
                 .foregroundStyle(depthModeColor)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(.black.opacity(0.38), in: Capsule())
-                .overlay(Capsule().stroke(depthModeColor.opacity(0.55), lineWidth: 1))
+                .frame(minWidth: 104, minHeight: 44)
+                .padding(.horizontal, 10)
+                .background(.black.opacity(0.48), in: Capsule())
+                .overlay(Capsule().stroke(depthModeColor.opacity(0.65), lineWidth: 1.2))
+                .contentShape(Capsule())
         }
-        .disabled(!vm.sceneDepth.isSupported)
-        .opacity(vm.sceneDepth.isSupported ? 1 : 0.55)
+        .buttonStyle(.plain)
+        .zIndex(30)
+    }
+
+    private var depthModeName: String {
+        vm.camera.activeCamera == .back ? "LiDAR" : "Depth"
     }
 
     private var depthModeLabel: String {
-        if !vm.sceneDepth.isSupported { return "LiDAR n/a" }
-        if let signal = vm.sceneDepth.latestFreshSignal, vm.isSceneDepthRequested {
-            return "LiDAR \(signal.displayDistance)"
+        if let signal = vm.camera.latestDepthSignal, signal.isFresh(maxAgeSec: AppConfig.sceneDepthMaxAgeSec), vm.isSceneDepthRequested {
+            return "\(depthModeName) \(signal.displayDistance)"
         }
-        return vm.isSceneDepthRequested ? "LiDAR on" : "LiDAR off"
+        if vm.isSceneDepthRequested {
+            return vm.camera.hasDepthSensorForActiveCamera ? "\(depthModeName) on" : "\(depthModeName) wait"
+        }
+        return "\(depthModeName) off"
     }
 
     private var depthModeColor: Color {
-        if !vm.sceneDepth.isSupported { return .white.opacity(0.45) }
-        if let signal = vm.sceneDepth.latestFreshSignal, signal.isLowLight { return .yellow }
+        if let signal = vm.camera.latestDepthSignal, signal.isLowLight, vm.isSceneDepthRequested { return .yellow }
+        if vm.isSceneDepthRequested && !vm.camera.hasDepthSensorForActiveCamera { return .orange }
         return vm.isSceneDepthRequested ? .yellow : Color(red: 0.65, green: 0.95, blue: 1.0)
     }
 
