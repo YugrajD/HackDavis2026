@@ -44,17 +44,42 @@ final class DashcamViewModel: NSObject, ObservableObject {
         locationManager.stopUpdatingLocation()
     }
 
+    private let uploader = MediaUploadClient()
+
     /// Called by the UI button or partner's ML hazard detection.
+    /// Finalises the rolling segment, uploads the .mp4 to the backend, and creates a
+    /// hazard event in MongoDB so the in-app gallery picks it up.
     func triggerSave(reason: String) {
         recorder.triggerSave(location: currentLocation, triggerType: reason) { [weak self] result in
             Task { @MainActor [weak self] in
+                guard let self else { return }
                 switch result {
-                case .success:
-                    self?.showStatus("Clip saved to Photos")
+                case .success(let url):
+                    self.showStatus("Uploading clip…")
+                    await self.uploadAndPersist(localURL: url)
                 case .failure(let error):
-                    self?.showStatus("Save failed: \(error)")
+                    self.showStatus("Save failed: \(error)")
                 }
             }
+        }
+    }
+
+    private func uploadAndPersist(localURL: URL) async {
+        let loc = currentLocation
+        let heading = navigation.userHeading
+        let speed = max(0, loc?.speed ?? 0)
+        do {
+            _ = try await uploader.uploadAndPersist(
+                clipURL: localURL,
+                rideId: "demo-ride-1",
+                location: loc.map { ($0.coordinate.latitude, $0.coordinate.longitude) },
+                headingDeg: heading,
+                speedMps: speed
+            )
+            showStatus("Clip saved to gallery")
+            try? FileManager.default.removeItem(at: localURL)
+        } catch {
+            showStatus("Upload failed: \(error.localizedDescription)")
         }
     }
 

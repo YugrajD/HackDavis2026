@@ -4,6 +4,7 @@ struct DashcamView: View {
     @StateObject private var vm = DashcamViewModel()
     @State private var pulse = false
     @State private var showNavSearch = false
+    @State private var showGallery = false
     @State private var previewSize: CGSize = .zero
 
     var body: some View {
@@ -31,6 +32,9 @@ struct DashcamView: View {
         .onDisappear { vm.stop() }
         .sheet(isPresented: $showNavSearch) {
             DestinationSearchView(nav: vm.navigation)
+        }
+        .fullScreenCover(isPresented: $showGallery) {
+            GalleryView()
         }
     }
 
@@ -144,6 +148,8 @@ struct DashcamView: View {
 
     private var bottomBar: some View {
         HStack(alignment: .center, spacing: 16) {
+            galleryButton
+            Spacer()
             navButton
             Spacer()
             saveButton
@@ -151,6 +157,16 @@ struct DashcamView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .background(.black.opacity(0.6))
+    }
+
+    private var galleryButton: some View {
+        Button { showGallery = true } label: {
+            Image(systemName: "film.stack")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 36, height: 36)
+                .background(Color.white.opacity(0.2), in: Circle())
+        }
     }
 
     private var navButton: some View {

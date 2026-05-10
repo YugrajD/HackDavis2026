@@ -136,13 +136,8 @@ final class RollingRecorder: ObservableObject {
 
         if let completeURL = previousURL {
             previousURL = nil
-            saveToPhotos(url: completeURL) { [weak self] result in
-                DispatchQueue.main.async {
-                    self?.isSaving = false
-                    self?.lastSaveResult = (try? result.get()) != nil ? "Saved!" : "Save failed"
-                }
-                completion?(result)
-            }
+            DispatchQueue.main.async { self.isSaving = false }
+            completion?(.success(completeURL))
             return
         }
 
@@ -180,29 +175,8 @@ final class RollingRecorder: ObservableObject {
                 completion?(.failure(.photosSaveFailed))
                 return
             }
-            self?.saveToPhotos(url: url) { result in
-                DispatchQueue.main.async {
-                    self?.isSaving = false
-                    self?.lastSaveResult = (try? result.get()) != nil ? "Saved!" : "Save failed"
-                }
-                completion?(result)
-            }
-        }
-    }
-
-    // MARK: - Photos
-
-    private func saveToPhotos(url: URL, completion: @escaping (Result<URL, RecorderError>) -> Void) {
-        PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
-            guard status == .authorized || status == .limited else {
-                completion(.failure(.photosDenied))
-                return
-            }
-            PHPhotoLibrary.shared().performChanges({
-                PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
-            }) { success, _ in
-                completion(success ? .success(url) : .failure(.photosSaveFailed))
-            }
+            DispatchQueue.main.async { self?.isSaving = false }
+            completion?(.success(url))
         }
     }
 
@@ -220,7 +194,8 @@ final class RollingRecorder: ObservableObject {
             AVVideoCodecKey: AVVideoCodecType.h264,
             AVVideoWidthKey: width,
             AVVideoHeightKey: height,
-            AVVideoCompressionPropertiesKey: [AVVideoAverageBitRateKey: 4_000_000]
+            // 1.2 Mbps → 60s clip ≈ 9 MB, safely under the server's 12 MB upload cap.
+            AVVideoCompressionPropertiesKey: [AVVideoAverageBitRateKey: 1_200_000]
         ]
     }
 

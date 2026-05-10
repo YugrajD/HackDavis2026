@@ -42,3 +42,6 @@ apps/mobile/.expo/
 # Python / ML artifacts
 services/yolo/__pycache__/
 services/yolo/*.pt
+
+# Local copy of demo env share — contains real keys, never commit
+guardian-road-env-share/
