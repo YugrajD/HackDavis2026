@@ -26,6 +26,10 @@ pnpm-debug.log*
 # TypeScript
 *.tsbuildinfo
 
+# Xcode / native iOS (GuardianRoad)
+**/xcuserdata/
+*.xcuserstate
+
 # runtime/generated artifacts
 /public/generated/uploads/
 /public/generated/reports/

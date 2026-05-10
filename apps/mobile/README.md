@@ -1,5 +1,7 @@
 # Guardian Road (Expo)
 
+**Simulator / native iOS:** see [docs/MOBILE_SIM_UNIFIED.md](../docs/MOBILE_SIM_UNIFIED.md) — `npm run sim` (Expo) vs `npm run sim:native` (Swift Xcode app at repo root).
+
 Mobile capture over **Wi‑Fi**: the app POSTs frames to your **Next.js** dev server on the laptop. The server calls the **Python YOLO sidecar** when `YOLO_SERVICE_URL` is set.
 
 ## Prereqs
